@@ -1,0 +1,180 @@
+using Microsoft.ML.OnnxRuntime;
+using Microsoft.ML.OnnxRuntime.Tensors;
+using PyRagix.Net.Config;
+using System.Text;
+using System.Text.RegularExpressions;
+
+namespace PyRagix.Net.Ingestion;
+
+/// <summary>
+/// ONNX-based embedding service for generating semantic vectors
+/// Supports sentence-transformers models (e.g., all-MiniLM-L6-v2)
+/// </summary>
+public class EmbeddingService : IDisposable
+{
+    private readonly InferenceSession _session;
+    private readonly PyRagixConfig _config;
+    private readonly int _maxTokens = 512; // Default for MiniLM models
+
+    public EmbeddingService(PyRagixConfig config)
+    {
+        _config = config;
+
+        // Configure session options for GPU if enabled
+        var sessionOptions = new SessionOptions();
+        if (config.GpuEnabled)
+        {
+            try
+            {
+                sessionOptions.AppendExecutionProvider_CUDA(config.GpuDeviceId);
+            }
+            catch
+            {
+                Console.WriteLine("CUDA not available, falling back to CPU");
+            }
+        }
+
+        if (!File.Exists(config.EmbeddingModelPath))
+        {
+            throw new FileNotFoundException($"Embedding model not found: {config.EmbeddingModelPath}");
+        }
+
+        _session = new InferenceSession(config.EmbeddingModelPath, sessionOptions);
+    }
+
+    /// <summary>
+    /// Generate embedding for a single text
+    /// </summary>
+    public async Task<float[]> EmbedAsync(string text)
+    {
+        var embeddings = await EmbedBatchAsync(new[] { text });
+        return embeddings[0];
+    }
+
+    /// <summary>
+    /// Generate embeddings for multiple texts (batched for efficiency)
+    /// </summary>
+    public async Task<float[][]> EmbedBatchAsync(IEnumerable<string> texts)
+    {
+        var textList = texts.ToList();
+        var results = new List<float[]>();
+
+        // Process in batches
+        for (int i = 0; i < textList.Count; i += _config.EmbeddingBatchSize)
+        {
+            var batch = textList.Skip(i).Take(_config.EmbeddingBatchSize).ToList();
+            var batchResults = await ProcessBatchAsync(batch);
+            results.AddRange(batchResults);
+        }
+
+        return results.ToArray();
+    }
+
+    private async Task<List<float[]>> ProcessBatchAsync(List<string> batch)
+    {
+        return await Task.Run(() =>
+        {
+            var results = new List<float[]>();
+
+            foreach (var text in batch)
+            {
+                // Simple tokenization (word-piece approximation)
+                var tokens = Tokenize(text);
+
+                // Create input tensors
+                var inputIds = new DenseTensor<long>(new[] { 1, tokens.Length });
+                var attentionMask = new DenseTensor<long>(new[] { 1, tokens.Length });
+                var tokenTypeIds = new DenseTensor<long>(new[] { 1, tokens.Length });
+
+                for (int i = 0; i < tokens.Length; i++)
+                {
+                    inputIds[0, i] = tokens[i];
+                    attentionMask[0, i] = 1;
+                    tokenTypeIds[0, i] = 0;
+                }
+
+                var inputs = new List<NamedOnnxValue>
+                {
+                    NamedOnnxValue.CreateFromTensor("input_ids", inputIds),
+                    NamedOnnxValue.CreateFromTensor("attention_mask", attentionMask),
+                    NamedOnnxValue.CreateFromTensor("token_type_ids", tokenTypeIds)
+                };
+
+                // Run inference
+                using var output = _session.Run(inputs);
+                var embedding = output.First().AsTensor<float>();
+
+                // Mean pooling (average across sequence dimension)
+                var vector = MeanPooling(embedding, tokens.Length);
+                results.Add(vector);
+            }
+
+            return results;
+        });
+    }
+
+    /// <summary>
+    /// Simple whitespace + punctuation tokenizer (approximates wordpiece)
+    /// For production, use a proper tokenizer like Microsoft.ML.Tokenizers
+    /// </summary>
+    private long[] Tokenize(string text)
+    {
+        // Lowercase and clean
+        text = text.ToLowerInvariant();
+        text = Regex.Replace(text, @"[^\w\s]", " ");
+
+        // Split into tokens
+        var words = text.Split(new[] { ' ', '\t', '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries);
+
+        // Simple hash-based vocabulary (maps to 0-30000 range)
+        // This is a SIMPLIFIED placeholder - real implementation should use model's vocab
+        var tokens = words.Take(_maxTokens - 2)
+            .Select(w => (long)(Math.Abs(w.GetHashCode()) % 30000 + 1))
+            .ToList();
+
+        // Add CLS and SEP tokens
+        tokens.Insert(0, 101); // [CLS]
+        tokens.Add(102); // [SEP]
+
+        // Pad to max length
+        while (tokens.Count < _maxTokens)
+        {
+            tokens.Add(0); // [PAD]
+        }
+
+        return tokens.Take(_maxTokens).ToArray();
+    }
+
+    /// <summary>
+    /// Mean pooling across sequence dimension
+    /// </summary>
+    private float[] MeanPooling(Tensor<float> embeddings, int sequenceLength)
+    {
+        var hiddenSize = _config.EmbeddingDimension;
+        var result = new float[hiddenSize];
+
+        for (int i = 0; i < hiddenSize; i++)
+        {
+            float sum = 0;
+            for (int j = 0; j < sequenceLength; j++)
+            {
+                sum += embeddings[0, j, i];
+            }
+            result[i] = sum / sequenceLength;
+        }
+
+        // L2 normalization
+        var norm = Math.Sqrt(result.Sum(x => x * x));
+        for (int i = 0; i < hiddenSize; i++)
+        {
+            result[i] /= (float)norm;
+        }
+
+        return result;
+    }
+
+    public void Dispose()
+    {
+        _session?.Dispose();
+    }
+}

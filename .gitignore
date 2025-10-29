@@ -1,0 +1,53 @@
+# .NET
+bin/
+obj/
+*.user
+*.suo
+*.cache
+.vs/
+
+# Build results
+[Dd]ebug/
+[Rr]elease/
+x64/
+x86/
+[Aa]rm/
+[Aa]rm64/
+
+# NuGet
+*.nupkg
+*.snupkg
+.nuget/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# RAG test documents
+pyragix-net-console/docs/
+
+# Database & Indexes (generated at runtime)
+*.db
+*.db-shm
+*.db-wal
+faiss_index.bin
+lucene_index/
+
+# ONNX Models (large files - export locally)
+Models/
+**/Models/embeddings/
+**/Models/reranker/
+
+# OCR Data (download separately)
+tessdata/
+
+# Configuration (contains local paths)
+settings.toml
+**/settings.toml
+
+# Logs
+*.log
+crash_log.txt
