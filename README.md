@@ -326,28 +326,6 @@ pyragix-net/
 - Disable `EnableQueryExpansion` for 2x faster queries (slight recall reduction)
 - Enable `GpuEnabled` for 5-10x faster embedding and reranking inference
 
-## Comparison: PyRagix (Python) vs PyRagix.Net (C#)
-
-| Feature | PyRagix (Python) | PyRagix.Net (C#) |
-|---------|------------------|------------------|
-| **Core RAG Pipeline** | ✅ | ✅ |
-| Query Expansion | ✅ | ✅ |
-| Hybrid Search (FAISS+BM25) | ✅ | ✅ |
-| Cross-Encoder Reranking | ✅ | ✅ |
-| Semantic Chunking | ✅ | ✅ |
-| Local Ollama LLM | ✅ | ✅ |
-| **Document Formats** |  |  |
-| PDF | ✅ PyMuPDF | ✅ PdfPig |
-| HTML | ✅ BeautifulSoup | ✅ AngleSharp |
-| Images (OCR) | ✅ PaddleOCR | ✅ Tesseract |
-| **Infrastructure** |  |  |
-| Cross-Platform | ✅ | ✅ |
-| Web UI | ✅ FastAPI + TypeScript | ❌ (engine only) |
-| Type Safety | ✅ pyright --strict | ✅ C# nullable refs |
-| **Ecosystem** |  |  |
-| Package Manager | pip/uv | NuGet |
-| Primary Use Case | Standalone app | Class library |
-
 **When to use PyRagix.Net:**
 - Building .NET applications (ASP.NET, Blazor, WPF, etc.)
 - Enterprise .NET shops requiring RAG capabilities
