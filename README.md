@@ -17,7 +17,7 @@ PyRagix.Net brings enterprise-grade RAG capabilities to the .NET ecosystem. Buil
 - **Cross-Platform**: Runs on Windows, Linux, and macOS via .NET 9.0
 
 This repository contains:
-- **`pyragix-net/`** - The RAG engine class library
+- **`pyragix-net/`** - The RAG engine class library (see [`pyragix-net/README.md`](pyragix-net/README.md))
 - **`pyragix-net-console/`** - Console application demonstrating engine usage
 
 ## Quick Start
@@ -41,7 +41,12 @@ dotnet restore
 
 # Build solution
 dotnet build
+
+# Run unit tests (xUnit)
+dotnet test
 ```
+
+For test-writing guidance, see [`PyRagix.Net.Tests/README.md`](PyRagix.Net.Tests/README.md).
 
 ### Setup ONNX Models (One-Time)
 
