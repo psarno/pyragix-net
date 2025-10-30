@@ -38,6 +38,7 @@ lucene_index/
 
 # ONNX Models (large files - export locally)
 Models/
+!pyragix-net/Core/Models/
 **/Models/embeddings/
 **/Models/reranker/
 
