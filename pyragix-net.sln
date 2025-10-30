@@ -7,6 +7,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "pyragix-net", "pyragix-net\
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "pyragix-net-console", "pyragix-net-console\pyragix-net-console.csproj", "{BDA5C7DF-84E3-4CDF-A37D-51293955B5A4}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PyRagix.Net.Tests", "PyRagix.Net.Tests\PyRagix.Net.Tests.csproj", "{BCC85FBC-4D12-4533-8403-FBEEB5924984}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -21,6 +23,10 @@ Global
 		{BDA5C7DF-84E3-4CDF-A37D-51293955B5A4}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{BDA5C7DF-84E3-4CDF-A37D-51293955B5A4}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{BDA5C7DF-84E3-4CDF-A37D-51293955B5A4}.Release|Any CPU.Build.0 = Release|Any CPU
+		{BCC85FBC-4D12-4533-8403-FBEEB5924984}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{BCC85FBC-4D12-4533-8403-FBEEB5924984}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{BCC85FBC-4D12-4533-8403-FBEEB5924984}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{BCC85FBC-4D12-4533-8403-FBEEB5924984}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
