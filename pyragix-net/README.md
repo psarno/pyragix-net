@@ -229,6 +229,19 @@ PyRagix.Net/
 - Disable `EnableQueryExpansion` for 2x faster queries (lower recall)
 - Use GPU via `GpuEnabled = true` for 5-10x faster embedding/reranking
 
+## Troubleshooting Native Vector Indexes
+
+FAISS powers the default vector index via the native `FaissNet` bindings. If you hit `DllNotFoundException` or run in an environment where the native library is unavailable:
+
+- The vector index is abstracted behind `IVectorIndexFactory` (see `pyragix-net/Ingestion/Vector`). You can supply your own factory when constructing `IndexService` or `HybridRetriever`. The test suite ships an `InMemoryVectorIndexFactory` example under `PyRagix.Net.Tests/TestInfrastructure` that uses pure C# data structures for predictable behaviour.
+- In DI-friendly scenarios, register the factory you prefer and inject it:  
+  ```csharp
+  services.AddSingleton<IVectorIndexFactory, InMemoryVectorIndexFactory>();
+  services.AddScoped(sp => new IndexService(config, dbContext, sp.GetRequiredService<IVectorIndexFactory>()));
+  services.AddScoped(sp => new HybridRetriever(config, dbContext, sp.GetRequiredService<IVectorIndexFactory>()));
+  ```
+- The managed fallback is intended for development and testing; production deployments should continue using FAISS for accuracy and performance.
+
 ## Comparison: PyRagix Python vs PyRagix.Net
 
 | Feature | PyRagix (Python) | PyRagix.Net (C#) |
