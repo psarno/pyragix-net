@@ -1,4 +1,3 @@
-using FaissNet;
 using Lucene.Net.Analysis.Standard;
 using Lucene.Net.Index;
 using Lucene.Net.QueryParsers.Classic;
@@ -9,6 +8,7 @@ using PyRagix.Net.Config;
 using PyRagix.Net.Core.Data;
 using PyRagix.Net.Core.Models;
 using Microsoft.EntityFrameworkCore;
+using PyRagix.Net.Ingestion.Vector;
 
 namespace PyRagix.Net.Retrieval;
 
@@ -20,15 +20,17 @@ public class HybridRetriever : IDisposable
 {
     private readonly PyRagixConfig _config;
     private readonly PyRagixDbContext _dbContext;
-    private FaissNet.Index? _faissIndex;
+    private readonly IVectorIndexFactory _vectorIndexFactory;
+    private IVectorIndex? _vectorIndex;
     private IndexReader? _luceneReader;
     private IndexSearcher? _luceneSearcher;
     private FSDirectory? _luceneDirectory;
 
-    public HybridRetriever(PyRagixConfig config, PyRagixDbContext dbContext)
+    public HybridRetriever(PyRagixConfig config, PyRagixDbContext dbContext, IVectorIndexFactory? vectorIndexFactory = null)
     {
         _config = config;
         _dbContext = dbContext;
+        _vectorIndexFactory = vectorIndexFactory ?? FaissVectorIndexFactory.Instance;
         LoadIndexes();
     }
 
@@ -37,11 +39,12 @@ public class HybridRetriever : IDisposable
         // Load FAISS index
         if (File.Exists(_config.FaissIndexPath))
         {
-            _faissIndex = FaissNet.Index.Load(_config.FaissIndexPath);
+            _vectorIndex?.Dispose();
+            _vectorIndex = _vectorIndexFactory.Load(_config.FaissIndexPath);
         }
 
         // Load Lucene index
-        var lucenePath = Path.Combine(System.IO.Directory.GetCurrentDirectory(), "lucene_index");
+        var lucenePath = ResolveLucenePath();
         if (System.IO.Directory.Exists(lucenePath))
         {
             _luceneDirectory = FSDirectory.Open(lucenePath);
@@ -76,23 +79,22 @@ public class HybridRetriever : IDisposable
     /// </summary>
     private async Task<List<ChunkMetadata>> VectorSearchAsync(float[] queryEmbedding, int k)
     {
-        if (_faissIndex == null)
+        if (_vectorIndex == null)
         {
             throw new InvalidOperationException("FAISS index not loaded");
         }
 
         return await Task.Run(async () =>
         {
-            var (distances, indices) = _faissIndex.Search(new[] { queryEmbedding }, k);
+            var (_, indices) = _vectorIndex.Search(new[] { queryEmbedding }, k);
 
             var chunks = new List<ChunkMetadata>();
             for (int i = 0; i < indices[0].Length; i++)
             {
-                var idx = (int)indices[0][i];
-                if (idx == -1) continue; // No result
+                var id = (int)indices[0][i];
+                if (id == -1) continue; // No result
 
-                // FAISS index position = SQLite ID (assumes sequential ingestion)
-                var chunk = await _dbContext.Chunks.FindAsync(idx + 1);
+                var chunk = await _dbContext.Chunks.FindAsync(id);
                 if (chunk != null)
                 {
                     chunks.Add(chunk);
@@ -184,6 +186,19 @@ public class HybridRetriever : IDisposable
     {
         _luceneReader?.Dispose();
         _luceneDirectory?.Dispose();
-        _faissIndex?.Dispose();
+        _vectorIndex?.Dispose();
+    }
+
+    private string ResolveLucenePath()
+    {
+        var lucenePath = _config.LuceneIndexPath;
+        if (string.IsNullOrWhiteSpace(lucenePath))
+        {
+            lucenePath = "lucene_index";
+        }
+
+        return System.IO.Path.IsPathRooted(lucenePath)
+            ? lucenePath
+            : System.IO.Path.Combine(System.IO.Directory.GetCurrentDirectory(), lucenePath);
     }
 }

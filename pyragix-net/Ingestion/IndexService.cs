@@ -1,4 +1,3 @@
-using FaissNet;
 using Lucene.Net.Analysis.Standard;
 using Lucene.Net.Documents;
 using Lucene.Net.Index;
@@ -7,6 +6,7 @@ using Lucene.Net.Util;
 using PyRagix.Net.Config;
 using PyRagix.Net.Core.Data;
 using PyRagix.Net.Core.Models;
+using PyRagix.Net.Ingestion.Vector;
 
 namespace PyRagix.Net.Ingestion;
 
@@ -17,24 +17,26 @@ public class IndexService : IDisposable
 {
     private readonly PyRagixConfig _config;
     private readonly PyRagixDbContext _dbContext;
-    private FaissNet.Index? _faissIndex;
+    private readonly IVectorIndexFactory _vectorIndexFactory;
+    private IVectorIndex? _vectorIndex;
     private IndexWriter? _luceneWriter;
     private FSDirectory? _luceneDirectory;
 
-    public IndexService(PyRagixConfig config, PyRagixDbContext dbContext)
+    public IndexService(PyRagixConfig config, PyRagixDbContext dbContext, IVectorIndexFactory? vectorIndexFactory = null)
     {
         _config = config;
         _dbContext = dbContext;
+        _vectorIndexFactory = vectorIndexFactory ?? FaissVectorIndexFactory.Instance;
         InitializeIndexes();
     }
 
     private void InitializeIndexes()
     {
         // Initialize FAISS index (Flat IP = Inner Product for cosine similarity)
-        _faissIndex = FaissNet.Index.CreateDefault(_config.EmbeddingDimension, MetricType.METRIC_INNER_PRODUCT);
+        _vectorIndex = _vectorIndexFactory.Create(_config.EmbeddingDimension);
 
         // Initialize Lucene index
-        var lucenePath = Path.Combine(System.IO.Directory.GetCurrentDirectory(), "lucene_index");
+        var lucenePath = ResolveLucenePath();
         System.IO.Directory.CreateDirectory(lucenePath);
         _luceneDirectory = FSDirectory.Open(lucenePath);
 
@@ -48,7 +50,7 @@ public class IndexService : IDisposable
     /// </summary>
     public async Task AddChunksAsync(List<(string content, float[] embedding, ChunkMetadata metadata)> chunks)
     {
-        if (_faissIndex == null || _luceneWriter == null)
+        if (_vectorIndex == null || _luceneWriter == null)
         {
             throw new InvalidOperationException("Indexes not initialized");
         }
@@ -63,7 +65,7 @@ public class IndexService : IDisposable
         // Add to FAISS with explicit IDs
         var vectors = chunks.Select(c => c.embedding).ToArray();
         var ids = chunks.Select(c => (long)c.metadata.Id).ToArray();
-        _faissIndex.AddWithIds(vectors, ids);
+        _vectorIndex.AddWithIds(vectors, ids);
 
         // Add to Lucene (text for BM25)
         foreach (var chunk in chunks)
@@ -84,12 +86,12 @@ public class IndexService : IDisposable
     /// </summary>
     public void SaveFaissIndex()
     {
-        if (_faissIndex == null)
+        if (_vectorIndex == null)
         {
             throw new InvalidOperationException("FAISS index not initialized");
         }
 
-        _faissIndex.Save(_config.FaissIndexPath);
+        _vectorIndex.Save(_config.FaissIndexPath);
     }
 
     /// <summary>
@@ -99,7 +101,8 @@ public class IndexService : IDisposable
     {
         if (File.Exists(_config.FaissIndexPath))
         {
-            _faissIndex = FaissNet.Index.Load(_config.FaissIndexPath);
+            _vectorIndex?.Dispose();
+            _vectorIndex = _vectorIndexFactory.Load(_config.FaissIndexPath);
         }
     }
 
@@ -108,13 +111,26 @@ public class IndexService : IDisposable
     /// </summary>
     public long GetIndexSize()
     {
-        return _faissIndex?.Count ?? 0;
+        return _vectorIndex?.Count ?? 0;
     }
 
     public void Dispose()
     {
         _luceneWriter?.Dispose();
         _luceneDirectory?.Dispose();
-        _faissIndex?.Dispose();
+        _vectorIndex?.Dispose();
+    }
+
+    private string ResolveLucenePath()
+    {
+        var lucenePath = _config.LuceneIndexPath;
+        if (string.IsNullOrWhiteSpace(lucenePath))
+        {
+            lucenePath = "lucene_index";
+        }
+
+        return System.IO.Path.IsPathRooted(lucenePath)
+            ? lucenePath
+            : System.IO.Path.Combine(System.IO.Directory.GetCurrentDirectory(), lucenePath);
     }
 }

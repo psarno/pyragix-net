@@ -14,6 +14,7 @@ public class PyRagixConfig
     public string DatabasePath { get; set; } = "pyragix.db";
     public string FaissIndexPath { get; set; } = "faiss_index.bin";
     public string BM25IndexPath { get; set; } = "bm25_index.pkl";
+    public string LuceneIndexPath { get; set; } = "lucene_index";
 
     // Ollama LLM
     public string OllamaEndpoint { get; set; } = "http://localhost:11434";
