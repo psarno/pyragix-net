@@ -33,5 +33,21 @@ jobs:
       - name: Build
         run: dotnet build pyragix-net.sln --configuration Release --no-restore
 
-      - name: Run tests
-        run: dotnet test pyragix-net.sln --configuration Release --no-build --verbosity normal
+      - name: Run tests with coverage
+        run: dotnet test pyragix-net.sln --configuration Release --no-build --verbosity normal --collect:"XPlat Code Coverage" --results-directory TestResults
+
+      - name: Install reportgenerator
+        run: dotnet tool install --global dotnet-reportgenerator-globaltool
+        env:
+          PATH: $HOME/.dotnet/tools:$PATH
+
+      - name: Generate coverage report
+        run: reportgenerator -reports:TestResults/**/coverage.cobertura.xml -targetdir:CoverageReport -reporttypes:HtmlSummary;MarkdownSummaryGithub;JsonSummary
+        env:
+          PATH: $HOME/.dotnet/tools:$PATH
+
+      - name: Upload coverage artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: CoverageReport
