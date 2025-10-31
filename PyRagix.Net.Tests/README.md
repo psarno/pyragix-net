@@ -20,6 +20,14 @@ dotnet test PyRagix.Net.Tests/PyRagix.Net.Tests.csproj
 ```
 Use the `--filter` option during focused runs, e.g. `--filter SemanticChunker`.
 
+To inspect code coverage locally, install the report generator tool once and capture coverage:
+```bash
+dotnet tool install --global dotnet-reportgenerator-globaltool
+dotnet test pyragix-net.sln --configuration Release --no-build --collect:"XPlat Code Coverage" --results-directory TestResults
+reportgenerator -reports:TestResults/**/coverage.cobertura.xml -targetdir:CoverageReport -reporttypes:HtmlSummary
+```
+Open `CoverageReport/index.html` to view the summary.
+
 ## Conventions
 - Prefer pure unit tests; replace disk/network dependencies with stubs or temporary files.
 - Match the naming of Python tests where it clarifies intent (`test_x` → `XyzTests` class with `Task`/`Async` suffix when needed).

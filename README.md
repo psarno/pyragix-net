@@ -2,9 +2,11 @@
 
 A **local-first** Retrieval-Augmented Generation (RAG) engine for .NET 9.0, porting the core capabilities of [PyRagix](https://github.com/psarno/pyragix) to C#. PyRagix.Net implements modern RAG techniques including query expansion, hybrid search (semantic + keyword), cross-encoder reranking, and local LLM generation via Ollama—all while maintaining complete data privacy through local-only operation.
 
-![.NET](https://img.shields.io/badge/.NET-9.0-blue.svg)
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
+![.NET](https://img.shields.io/badge/.NET-9.0-blue.svg)
 ![C#](https://img.shields.io/badge/C%23-12.0-purple.svg)
+![Local-first](https://img.shields.io/badge/local--first-RAG-brightgreen)
+![Ollama](https://img.shields.io/badge/Ollama-ready-blue)
 
 ## Overview
 
@@ -17,8 +19,18 @@ PyRagix.Net brings enterprise-grade RAG capabilities to the .NET ecosystem. Buil
 - **Cross-Platform**: Runs on Windows, Linux, and macOS via .NET 9.0
 
 This repository contains:
-- **`pyragix-net/`** - The RAG engine class library (see [`pyragix-net/README.md`](pyragix-net/README.md))
+- **`pyragix-net/`** - The RAG engine class library (see the engine [`README`](pyragix-net/README.md))
 - **`pyragix-net-console/`** - Console application demonstrating engine usage
+
+### Technology at a Glance
+Talking with stakeholders or curious users? This is the quick translation guide:
+- **RAG** – An “open-book” AI that looks up relevant docs before answering.
+- **Hybrid Search (FAISS + BM25)** – Semantic matchmaker plus keyword detective.
+- **Ollama** – Runs the local LLM for query rewrites and answer drafting.
+- **ONNX Runtime** – Keeps exported ML models humming inside .NET.
+- **Tesseract OCR** – Turns scanned PDFs into searchable text.
+
+Need more than bullet points? See our [`technology explainer`](docs/technology-explainer.md) for a deeper plain-language tour.
 
 ## Quick Start
 
