@@ -11,6 +11,7 @@ Developer guide for the xUnit test suite that keeps the .NET port aligned with t
 - `PyRagixConfigTests.cs` – verifies TOML binding and validation rules.
 - `SemanticChunkerTests.cs` – covers semantic vs. fixed-window chunking logic.
 - `DocumentProcessorTests.cs` – ensures HTML extraction strips scripts/styles and normalises whitespace.
+- `Integration/HybridRetrieverIntegrationTests.cs` – exercises the indexing pipeline (SQLite + Lucene) and vector search via an in-memory FAISS substitute.
 
 Add new files per area you port from the Python suite (e.g., retrieval stubs, file filtering). Keep tests small and self-contained.
 
@@ -33,6 +34,9 @@ Open `CoverageReport/index.html` to view the summary.
 - Match the naming of Python tests where it clarifies intent (`test_x` → `XyzTests` class with `Task`/`Async` suffix when needed).
 - Keep assertions expressive—verify both behaviour and any key side effects (e.g., overlap sizing, warnings).
 - Document tricky scenarios inline with short comments so parity with Python remains obvious.
+
+## Integration Tests
+When you need cross-component coverage without native dependencies, use the `InMemoryVectorIndexFactory` helper. It provides a deterministic stand-in for FAISS so hybrid retrieval logic can be validated entirely in-process.
 
 ## Adding Coverage
 When porting a Python test:
