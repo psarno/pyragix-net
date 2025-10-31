@@ -6,13 +6,17 @@ using System.Text.Json;
 namespace PyRagix.Net.Retrieval;
 
 /// <summary>
-/// Ollama LLM client for answer generation
+/// Wraps calls to Ollama for grounded answer generation.
+/// This mirrors the Python generator so prompt formatting stays aligned across languages.
 /// </summary>
 public class OllamaGenerator
 {
     private readonly PyRagixConfig _config;
     private readonly HttpClient _httpClient;
 
+    /// <summary>
+    /// Configures a dedicated <see cref="HttpClient"/> with the project-level timeout.
+    /// </summary>
     public OllamaGenerator(PyRagixConfig config)
     {
         _config = config;
@@ -23,7 +27,8 @@ public class OllamaGenerator
     }
 
     /// <summary>
-    /// Generate answer based on retrieved context chunks
+    /// Generates an answer conditioned on the supplied context chunks.
+    /// Falls back to a descriptive error message when the call fails.
     /// </summary>
     public async Task<string> GenerateAnswerAsync(string question, List<ChunkMetadata> context)
     {
@@ -42,7 +47,7 @@ public class OllamaGenerator
     }
 
     /// <summary>
-    /// Format context chunks for prompt
+    /// Formats each chunk with a numbered header to make citations easier for the LLM.
     /// </summary>
     private string FormatContext(List<ChunkMetadata> chunks)
     {
@@ -60,7 +65,7 @@ public class OllamaGenerator
     }
 
     /// <summary>
-    /// Build RAG prompt
+    /// Builds the instruction prompt that constrains the model to grounded answers.
     /// </summary>
     private string BuildPrompt(string question, string context)
     {
@@ -81,7 +86,7 @@ Answer:";
     }
 
     /// <summary>
-    /// Call Ollama API
+    /// Calls the Ollama generate endpoint and returns the raw response text.
     /// </summary>
     private async Task<string> CallOllamaAsync(string prompt)
     {
@@ -111,7 +116,7 @@ Answer:";
     }
 
     /// <summary>
-    /// Check if Ollama is running
+    /// Performs a lightweight health check against the Ollama tags endpoint to confirm availability.
     /// </summary>
     public async Task<bool> IsOllamaAvailableAsync()
     {

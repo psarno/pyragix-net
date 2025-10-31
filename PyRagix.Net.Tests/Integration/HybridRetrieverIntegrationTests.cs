@@ -75,6 +75,7 @@ public class HybridRetrieverIntegrationTests
             "Alpha chunk about vectors",
             topK: 1);
 
+        // Only the alpha chunk should surface because we seeded the embedding to match the query vector exactly.
         var chunk = Assert.Single(results);
         Assert.Equal("Alpha chunk about vectors", chunk.Content);
         Assert.Equal("alpha.txt", chunk.SourceFile);

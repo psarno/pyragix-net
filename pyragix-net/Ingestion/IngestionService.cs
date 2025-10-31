@@ -1,35 +1,37 @@
 using PyRagix.Net.Config;
 using PyRagix.Net.Core.Data;
 using PyRagix.Net.Core.Models;
+using System.IO;
 
 namespace PyRagix.Net.Ingestion;
 
 /// <summary>
-/// Main ingestion pipeline: Load → Process → Chunk → Embed → Index
+/// Coordinates ingestion of raw documents into chunk metadata, embeddings, and search indexes.
+/// Mirrors the Python pipeline: extraction → chunking → embedding → persistence.
 /// </summary>
 public class IngestionService : IDisposable
 {
     private readonly PyRagixConfig _config;
-    private readonly PyRagixDbContext _dbContext;
+    private PyRagixDbContext _dbContext = null!;
     private readonly DocumentProcessor _documentProcessor;
     private readonly SemanticChunker _chunker;
     private readonly EmbeddingService _embeddingService;
-    private readonly IndexService _indexService;
+    private IndexService _indexService = null!;
 
+    /// <summary>
+    /// Bootstraps all ingestion components up front so repeated calls reuse expensive resources (OCR, ONNX, EF).
+    /// </summary>
     public IngestionService(PyRagixConfig config)
     {
         _config = config;
-        _dbContext = new PyRagixDbContext(config.DatabasePath);
-        _dbContext.EnsureCreated();
-
+        InitializeStorage();
         _documentProcessor = new DocumentProcessor(config);
         _chunker = new SemanticChunker(config);
         _embeddingService = new EmbeddingService(config);
-        _indexService = new IndexService(config, _dbContext);
     }
 
     /// <summary>
-    /// Ingest all documents from a folder
+    /// Walks the target folder recursively, processing each supported file into searchable chunks.
     /// </summary>
     public async Task IngestFolderAsync(string folderPath, bool fresh = false)
     {
@@ -40,7 +42,14 @@ public class IngestionService : IDisposable
 
         Console.WriteLine($"Starting ingestion from: {folderPath}");
 
-        // Get all supported files
+        if (fresh)
+        {
+            Console.WriteLine("Fresh ingestion requested - clearing existing database and index artifacts...");
+            ResetStorage();
+            Console.WriteLine("Existing artifacts removed. Rebuilding indexes from scratch.");
+        }
+
+        // Collect the worklist up front; ingestion order matters because FAISS IDs mirror ChunkMetadata.Id.
         var files = GetSupportedFiles(folderPath);
         Console.WriteLine($"Found {files.Count} files to process");
 
@@ -60,17 +69,17 @@ public class IngestionService : IDisposable
             }
         }
 
-        // Save indexes
+        // Persist FAISS index once everything has been written to SQLite so IDs remain consistent.
         _indexService.SaveFaissIndex();
         Console.WriteLine($"\nIngestion complete! Indexed {_indexService.GetIndexSize()} chunks from {processedCount} files.");
     }
 
     /// <summary>
-    /// Ingest a single file
+    /// Runs the extraction → chunking → embedding → indexing flow for a single file.
     /// </summary>
     private async Task IngestFileAsync(string filePath)
     {
-        // Extract text
+        // Extract the canonical text representation for this document.
         var text = await _documentProcessor.ExtractTextAsync(filePath);
 
         if (string.IsNullOrWhiteSpace(text))
@@ -79,7 +88,7 @@ public class IngestionService : IDisposable
             return;
         }
 
-        // Chunk text
+        // Break the document into overlapping sentence-aware chunks so we maintain context in retrieval.
         var chunks = _chunker.ChunkText(text);
 
         if (chunks.Count == 0)
@@ -88,10 +97,10 @@ public class IngestionService : IDisposable
             return;
         }
 
-        // Generate embeddings
+        // Generate vector representations that feed both FAISS and hybrid scoring.
         var embeddings = await _embeddingService.EmbedBatchAsync(chunks);
 
-        // Create metadata
+        // Create metadata rows that capture origin and ordering information for each chunk.
         var chunkData = new List<(string content, float[] embedding, ChunkMetadata metadata)>();
         for (int i = 0; i < chunks.Count; i++)
         {
@@ -107,12 +116,12 @@ public class IngestionService : IDisposable
             chunkData.Add((chunks[i], embeddings[i], metadata));
         }
 
-        // Add to indexes
+        // Persist metadata + vectors to their respective storage engines in one call.
         await _indexService.AddChunksAsync(chunkData);
     }
 
     /// <summary>
-    /// Get all supported files from folder (recursive)
+    /// Collects every file under <paramref name="folderPath"/> that the ingestion pipeline understands.
     /// </summary>
     private List<string> GetSupportedFiles(string folderPath)
     {
@@ -123,6 +132,77 @@ public class IngestionService : IDisposable
             .ToList();
     }
 
+    /// <summary>
+    /// Drops existing SQLite/FAISS/Lucene artifacts and reinitialises the backing services.
+    /// </summary>
+    private void ResetStorage()
+    {
+        _indexService?.Dispose();
+        _dbContext?.Dispose();
+
+        DeleteFileIfExists(_config.DatabasePath);
+        DeleteFileIfExists(_config.FaissIndexPath);
+        DeleteFileIfExists(_config.BM25IndexPath);
+
+        var lucenePath = ResolveLucenePath();
+        if (!string.IsNullOrWhiteSpace(lucenePath) && Directory.Exists(lucenePath))
+        {
+            Directory.Delete(lucenePath, recursive: true);
+        }
+
+        InitializeStorage();
+    }
+
+    /// <summary>
+    /// Ensures the database exists and recreates index services after a reset.
+    /// </summary>
+    private void InitializeStorage()
+    {
+        _dbContext = new PyRagixDbContext(_config.DatabasePath);
+        _dbContext.EnsureCreated();
+        _indexService = new IndexService(_config, _dbContext);
+    }
+
+    /// <summary>
+    /// Removes the specified file if it exists, normalising relative paths against the working directory.
+    /// </summary>
+    private void DeleteFileIfExists(string? path)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            return;
+        }
+
+        if (!Path.IsPathRooted(path))
+        {
+            path = Path.Combine(Directory.GetCurrentDirectory(), path);
+        }
+
+        if (File.Exists(path))
+        {
+            File.Delete(path);
+        }
+    }
+
+    /// <summary>
+    /// Computes the absolute path to the Lucene index directory based on configuration.
+    /// </summary>
+    private string ResolveLucenePath()
+    {
+        var lucenePath = _config.LuceneIndexPath;
+        if (string.IsNullOrWhiteSpace(lucenePath))
+        {
+            return "lucene_index";
+        }
+
+        return Path.IsPathRooted(lucenePath)
+            ? lucenePath
+            : Path.Combine(Directory.GetCurrentDirectory(), lucenePath);
+    }
+
+    /// <summary>
+    /// Releases native resources (OCR, ONNX, Lucene/FAISS) when ingestion is finished.
+    /// </summary>
     public void Dispose()
     {
         _documentProcessor?.Dispose();

@@ -3,6 +3,9 @@ using Xunit;
 
 namespace PyRagix.Net.Tests;
 
+/// <summary>
+/// Validates that <see cref="PyRagixConfig"/> loads sensible defaults and enforces guard rails on user-provided values.
+/// </summary>
 public class PyRagixConfigTests
 {
     [Fact]
@@ -15,6 +18,7 @@ public class PyRagixConfigTests
             File.Delete(fileName);
         }
 
+        // When the file is missing we expect the in-memory defaults to be used so the engine can still boot.
         var config = PyRagixConfig.LoadFromToml(fileName);
 
         Assert.Equal("./Models/embeddings/model.onnx", config.EmbeddingModelPath);
@@ -41,6 +45,7 @@ public class PyRagixConfigTests
 
             var config = PyRagixConfig.LoadFromToml(fileName);
 
+            // Every overridden value should flow back into the strongly typed object.
             Assert.Equal(1024, config.ChunkSize);
             Assert.Equal(128, config.ChunkOverlap);
             Assert.False(config.EnableSemanticChunking);
@@ -98,6 +103,7 @@ public class PyRagixConfigTests
             QueryExpansionCount = 0,
         };
 
+        // The pipeline requires at least one query variant to operate; zero should be rejected.
         Assert.Throws<InvalidOperationException>(() => config.Validate());
     }
 }

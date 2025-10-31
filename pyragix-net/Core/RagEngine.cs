@@ -5,8 +5,8 @@ using PyRagix.Net.Retrieval;
 namespace PyRagix.Net.Core;
 
 /// <summary>
-/// PyRagix.Net RAG Engine - Main entry point for consumers
-/// Local-first RAG with query expansion, hybrid search, and reranking
+/// Public façade that wires together ingestion and retrieval services.
+/// Callers hydrate this once and reuse it for document ingestion as well as conversational queries.
 /// </summary>
 public class RagEngine : IDisposable
 {
@@ -15,7 +15,7 @@ public class RagEngine : IDisposable
     private RetrievalService? _retrievalService;
 
     /// <summary>
-    /// Create RAG engine with configuration
+    /// Creates a new engine instance using the supplied configuration and validates the settings eagerly.
     /// </summary>
     public RagEngine(PyRagixConfig config)
     {
@@ -24,7 +24,7 @@ public class RagEngine : IDisposable
     }
 
     /// <summary>
-    /// Create RAG engine from TOML settings file
+    /// Convenience constructor that loads configuration from disk before instantiating the engine.
     /// </summary>
     public static RagEngine FromSettings(string settingsPath = "settings.toml")
     {
@@ -33,7 +33,7 @@ public class RagEngine : IDisposable
     }
 
     /// <summary>
-    /// Ingest documents from a folder
+    /// Executes the full ingestion pipeline against every supported document inside the target folder.
     /// </summary>
     /// <param name="folderPath">Path to folder containing documents (PDF, HTML, images)</param>
     /// <param name="fresh">If true, creates new indexes. If false, appends to existing.</param>
@@ -44,7 +44,7 @@ public class RagEngine : IDisposable
     }
 
     /// <summary>
-    /// Query the RAG system
+    /// Runs the hybrid retrieval → rerank → generation pipeline for the supplied user question.
     /// </summary>
     /// <param name="question">Natural language question</param>
     /// <param name="topK">Number of top chunks to use for answer generation (default: 7)</param>
@@ -53,7 +53,7 @@ public class RagEngine : IDisposable
     {
         _retrievalService ??= new RetrievalService(_config);
 
-        // Ensure system is ready
+        // Ensure critical dependencies (indexes + Ollama) are reachable before attempting retrieval.
         if (!await _retrievalService.IsReadyAsync())
         {
             throw new InvalidOperationException("RAG system not ready. Check Ollama and index files.");
@@ -63,7 +63,7 @@ public class RagEngine : IDisposable
     }
 
     /// <summary>
-    /// Check if system is ready for queries
+    /// Checks whether the engine has the minimum prerequisites to successfully answer a query.
     /// </summary>
     public async Task<bool> IsReadyAsync()
     {
@@ -71,6 +71,9 @@ public class RagEngine : IDisposable
         return await _retrievalService.IsReadyAsync();
     }
 
+    /// <summary>
+    /// Disposes the lazily created services when the engine is no longer required.
+    /// </summary>
     public void Dispose()
     {
         _ingestionService?.Dispose();

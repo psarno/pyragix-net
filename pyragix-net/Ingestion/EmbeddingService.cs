@@ -7,8 +7,7 @@ using System.Text.RegularExpressions;
 namespace PyRagix.Net.Ingestion;
 
 /// <summary>
-/// ONNX-based embedding service for generating semantic vectors
-/// Supports sentence-transformers models (e.g., all-MiniLM-L6-v2)
+/// Generates sentence embeddings using an ONNX Runtime session, mirroring the Python MiniLM flow.
 /// </summary>
 public class EmbeddingService : IDisposable
 {
@@ -16,6 +15,9 @@ public class EmbeddingService : IDisposable
     private readonly PyRagixConfig _config;
     private readonly int _maxTokens = 512; // Default for MiniLM models
 
+    /// <summary>
+    /// Creates the ONNX session once so repeated batches reuse the same native resources.
+    /// </summary>
     public EmbeddingService(PyRagixConfig config)
     {
         _config = config;
@@ -43,7 +45,7 @@ public class EmbeddingService : IDisposable
     }
 
     /// <summary>
-    /// Generate embedding for a single text
+    /// Convenience helper that embeds a single string by delegating to the batched API.
     /// </summary>
     public async Task<float[]> EmbedAsync(string text)
     {
@@ -52,14 +54,14 @@ public class EmbeddingService : IDisposable
     }
 
     /// <summary>
-    /// Generate embeddings for multiple texts (batched for efficiency)
+    /// Streams the input through the ONNX session in batches, respecting the configured batch size.
     /// </summary>
     public async Task<float[][]> EmbedBatchAsync(IEnumerable<string> texts)
     {
         var textList = texts.ToList();
         var results = new List<float[]>();
 
-        // Process in batches
+        // Process in batches so we do not exhaust VRAM/host memory on large queries.
         for (int i = 0; i < textList.Count; i += _config.EmbeddingBatchSize)
         {
             var batch = textList.Skip(i).Take(_config.EmbeddingBatchSize).ToList();
@@ -70,6 +72,9 @@ public class EmbeddingService : IDisposable
         return results.ToArray();
     }
 
+    /// <summary>
+    /// Runs the ONNX model for the supplied batch on a background thread pool thread.
+    /// </summary>
     private async Task<List<float[]>> ProcessBatchAsync(List<string> batch)
     {
         return await Task.Run(() =>
@@ -114,8 +119,8 @@ public class EmbeddingService : IDisposable
     }
 
     /// <summary>
-    /// Simple whitespace + punctuation tokenizer (approximates wordpiece)
-    /// For production, use a proper tokenizer like Microsoft.ML.Tokenizers
+    /// Extremely lightweight tokenizer that mirrors the Python placeholder implementation.
+    /// Replace with a proper vocabulary-backed tokenizer when parity is required.
     /// </summary>
     private long[] Tokenize(string text)
     {
@@ -146,7 +151,7 @@ public class EmbeddingService : IDisposable
     }
 
     /// <summary>
-    /// Mean pooling across sequence dimension
+    /// Applies mean pooling across the sequence dimension followed by L2 normalisation, matching sentence-transformers defaults.
     /// </summary>
     private float[] MeanPooling(Tensor<float> embeddings, int sequenceLength)
     {
@@ -173,6 +178,9 @@ public class EmbeddingService : IDisposable
         return result;
     }
 
+    /// <summary>
+    /// Disposes the underlying ONNX session and associated native resources.
+    /// </summary>
     public void Dispose()
     {
         _session?.Dispose();

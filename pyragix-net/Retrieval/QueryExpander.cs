@@ -5,13 +5,16 @@ using System.Text;
 namespace PyRagix.Net.Retrieval;
 
 /// <summary>
-/// Generates multiple query variants via Ollama for improved recall
+/// Calls an Ollama model to generate alternative phrasings of the user's question, boosting recall for lexical/semantic search.
 /// </summary>
 public class QueryExpander
 {
     private readonly PyRagixConfig _config;
     private readonly HttpClient _httpClient;
 
+    /// <summary>
+    /// Initialises the expander with a dedicated <see cref="HttpClient"/> respecting the configured timeout.
+    /// </summary>
     public QueryExpander(PyRagixConfig config)
     {
         _config = config;
@@ -22,7 +25,7 @@ public class QueryExpander
     }
 
     /// <summary>
-    /// Generate 3-5 query variants
+    /// Generates additional, distinct question variants (when enabled) to broaden the retrieval surface area.
     /// </summary>
     public async Task<List<string>> ExpandQueryAsync(string originalQuery)
     {
@@ -58,9 +61,13 @@ Alternative questions:";
             Console.WriteLine($"Query expansion failed: {ex.Message}. Using original query only.");
         }
 
+        // Deduplicate to guard against the model echoing the original question or repeating a variant verbatim.
         return variants.Distinct().ToList();
     }
 
+    /// <summary>
+    /// Invokes the Ollama generate endpoint and returns the raw response text.
+    /// </summary>
     private async Task<string> CallOllamaAsync(string prompt)
     {
         var requestBody = new

@@ -4,7 +4,8 @@ using System.ComponentModel.DataAnnotations.Schema;
 namespace PyRagix.Net.Core.Models;
 
 /// <summary>
-/// SQLite entity for document chunk metadata
+/// SQLite entity representing a single chunk produced during ingestion.
+/// The primary key is reused as the vector identifier inside FAISS to keep lookups aligned.
 /// </summary>
 public class ChunkMetadata
 {

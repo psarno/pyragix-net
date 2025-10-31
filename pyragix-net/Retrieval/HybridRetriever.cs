@@ -13,8 +13,8 @@ using PyRagix.Net.Ingestion.Vector;
 namespace PyRagix.Net.Retrieval;
 
 /// <summary>
-/// Hybrid search combining FAISS (semantic) + Lucene BM25 (keyword)
-/// Uses Reciprocal Rank Fusion (RRF) to merge results
+/// Executes hybrid retrieval by combining FAISS vector lookup with Lucene BM25 keyword search.
+/// Results from both sources are merged via Reciprocal Rank Fusion, matching the Python approach.
 /// </summary>
 public class HybridRetriever : IDisposable
 {
@@ -26,6 +26,9 @@ public class HybridRetriever : IDisposable
     private IndexSearcher? _luceneSearcher;
     private FSDirectory? _luceneDirectory;
 
+    /// <summary>
+    /// Loads both FAISS and Lucene indexes so queries can be served immediately after construction.
+    /// </summary>
     public HybridRetriever(PyRagixConfig config, PyRagixDbContext dbContext, IVectorIndexFactory? vectorIndexFactory = null)
     {
         _config = config;
@@ -34,6 +37,9 @@ public class HybridRetriever : IDisposable
         LoadIndexes();
     }
 
+    /// <summary>
+    /// Opens the FAISS and Lucene indexes from disk if the corresponding files exist.
+    /// </summary>
     private void LoadIndexes()
     {
         // Load FAISS index
@@ -43,7 +49,7 @@ public class HybridRetriever : IDisposable
             _vectorIndex = _vectorIndexFactory.Load(_config.FaissIndexPath);
         }
 
-        // Load Lucene index
+        // Load Lucene index so keyword queries can be executed without re-ingesting documents.
         var lucenePath = ResolveLucenePath();
         if (System.IO.Directory.Exists(lucenePath))
         {
@@ -54,7 +60,8 @@ public class HybridRetriever : IDisposable
     }
 
     /// <summary>
-    /// Hybrid search: FAISS + BM25 with RRF fusion
+    /// Performs the configured hybrid search.
+    /// Falls back to pure vector search when hybrid search is disabled.
     /// </summary>
     public async Task<List<ChunkMetadata>> SearchAsync(float[] queryEmbedding, string queryText, int topK)
     {
@@ -75,7 +82,7 @@ public class HybridRetriever : IDisposable
     }
 
     /// <summary>
-    /// FAISS vector search
+    /// Queries FAISS and materialises the associated chunk metadata records from SQLite.
     /// </summary>
     private async Task<List<ChunkMetadata>> VectorSearchAsync(float[] queryEmbedding, int k)
     {
@@ -93,7 +100,7 @@ public class HybridRetriever : IDisposable
             {
                 var id = (int)indices[0][i];
                 if (id == -1) continue; // No result
-
+                // Use FindAsync so EF can leverage the context cache when multiple variants hit the same chunk.
                 var chunk = await _dbContext.Chunks.FindAsync(id);
                 if (chunk != null)
                 {
@@ -106,7 +113,7 @@ public class HybridRetriever : IDisposable
     }
 
     /// <summary>
-    /// Lucene BM25 keyword search
+    /// Executes a BM25 search against the Lucene index and fetches the matching chunk metadata records.
     /// </summary>
     private async Task<List<ChunkMetadata>> KeywordSearchAsync(string queryText, int k)
     {
@@ -144,7 +151,7 @@ public class HybridRetriever : IDisposable
     }
 
     /// <summary>
-    /// Reciprocal Rank Fusion: weighted merge of two ranked lists
+    /// Applies Reciprocal Rank Fusion to blend semantic and keyword result lists into a single ranking.
     /// </summary>
     private List<ChunkMetadata> FuseResults(
         List<ChunkMetadata> vectorResults,
@@ -182,6 +189,9 @@ public class HybridRetriever : IDisposable
             .ToList();
     }
 
+    /// <summary>
+    /// Releases Lucene and FAISS resources when the retriever is disposed.
+    /// </summary>
     public void Dispose()
     {
         _luceneReader?.Dispose();
@@ -189,6 +199,9 @@ public class HybridRetriever : IDisposable
         _vectorIndex?.Dispose();
     }
 
+    /// <summary>
+    /// Resolves the configured Lucene directory to an absolute path.
+    /// </summary>
     private string ResolveLucenePath()
     {
         var lucenePath = _config.LuceneIndexPath;

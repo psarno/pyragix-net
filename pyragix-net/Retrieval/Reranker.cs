@@ -6,14 +6,17 @@ using PyRagix.Net.Core.Models;
 namespace PyRagix.Net.Retrieval;
 
 /// <summary>
-/// Cross-encoder reranker using ONNX (e.g., ms-marco-MiniLM-L-6-v2)
-/// Scores (query, document) pairs for precision ranking
+/// Cross-encoder reranker that scores query/chunk pairs to improve precision in the final result set.
+/// Uses the same placeholder tokenisation strategy as the Python port until a shared tokenizer is introduced.
 /// </summary>
 public class Reranker : IDisposable
 {
     private readonly PyRagixConfig _config;
     private readonly InferenceSession? _session;
 
+    /// <summary>
+    /// Initialises the ONNX session if reranking is enabled and the model file is present.
+    /// </summary>
     public Reranker(PyRagixConfig config)
     {
         _config = config;
@@ -46,7 +49,7 @@ public class Reranker : IDisposable
     }
 
     /// <summary>
-    /// Rerank chunks by relevance to query
+    /// Scores each chunk against the query and returns the top results ordered by relevance.
     /// </summary>
     public async Task<List<ChunkMetadata>> RerankAsync(string query, List<ChunkMetadata> chunks)
     {
@@ -75,7 +78,7 @@ public class Reranker : IDisposable
     }
 
     /// <summary>
-    /// Score a (query, document) pair
+    /// Produces a single relevance score for the query/document pair by invoking the ONNX cross-encoder.
     /// </summary>
     private float ScorePair(string query, string document)
     {
@@ -113,7 +116,7 @@ public class Reranker : IDisposable
     }
 
     /// <summary>
-    /// Simple tokenizer (same as EmbeddingService)
+    /// Placeholder tokenizer that mirrors <see cref="EmbeddingService"/>; replace with a shared tokenizer when available.
     /// </summary>
     private long[] Tokenize(string text)
     {

@@ -4,8 +4,8 @@ using System.Text.RegularExpressions;
 namespace PyRagix.Net.Ingestion;
 
 /// <summary>
-/// Sentence-boundary-aware text chunking (like LangChain's RecursiveCharacterTextSplitter)
-/// Respects semantic boundaries to preserve context
+/// Splits documents into overlapping sentence-aware chunks, preserving context for downstream retrieval.
+/// Provides a fixed-window fallback when semantic chunking is disabled in configuration.
 /// </summary>
 public class SemanticChunker
 {
@@ -17,7 +17,7 @@ public class SemanticChunker
     }
 
     /// <summary>
-    /// Split text into chunks at sentence boundaries
+    /// Produces a list of chunk strings following the configuration's semantic/fixed settings.
     /// </summary>
     public List<string> ChunkText(string text)
     {
@@ -44,7 +44,7 @@ public class SemanticChunker
         {
             var sentenceLength = sentence.Length;
 
-            // If adding this sentence would exceed chunk size
+            // If adding this sentence would exceed the chunk window, emit the existing chunk and carry forward overlap.
             if (currentLength + sentenceLength > _config.ChunkSize && currentChunk.Count > 0)
             {
                 // Save current chunk
@@ -70,7 +70,7 @@ public class SemanticChunker
     }
 
     /// <summary>
-    /// Split text into sentences using regex
+    /// Splits the input using a coarse sentence boundary heuristic similar to the Python implementation.
     /// </summary>
     private List<string> SplitSentences(string text)
     {
@@ -85,7 +85,7 @@ public class SemanticChunker
     }
 
     /// <summary>
-    /// Get last N characters worth of sentences for overlap
+    /// Builds the overlap window by walking backwards through the current chunk until the desired character count is met.
     /// </summary>
     private IEnumerable<string> GetOverlapSentences(List<string> sentences, int overlapSize)
     {
@@ -105,7 +105,7 @@ public class SemanticChunker
     }
 
     /// <summary>
-    /// Simple fixed-size chunking (fallback)
+    /// Fallback that emits fixed windows with the configured overlap when semantic chunking is disabled.
     /// </summary>
     private List<string> FixedChunk(string text)
     {

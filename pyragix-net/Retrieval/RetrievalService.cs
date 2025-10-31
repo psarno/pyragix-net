@@ -5,7 +5,8 @@ using PyRagix.Net.Ingestion;
 namespace PyRagix.Net.Retrieval;
 
 /// <summary>
-/// Main query pipeline: Expand → Retrieve → Rerank → Generate
+/// Orchestrates the full retrieval-augmented generation flow:
+/// query expansion, hybrid retrieval, cross-encoder reranking, and answer generation.
 /// </summary>
 public class RetrievalService : IDisposable
 {
@@ -17,6 +18,9 @@ public class RetrievalService : IDisposable
     private readonly Reranker _reranker;
     private readonly OllamaGenerator _generator;
 
+    /// <summary>
+    /// Constructs the service and spins up the reusable ingestion/retrieval dependencies.
+    /// </summary>
     public RetrievalService(PyRagixConfig config)
     {
         _config = config;
@@ -29,7 +33,7 @@ public class RetrievalService : IDisposable
     }
 
     /// <summary>
-    /// Execute full RAG query pipeline
+    /// Executes the full pipeline and returns the generated answer string.
     /// </summary>
     public async Task<string> QueryAsync(string question, int? topK = null)
     {
@@ -54,7 +58,7 @@ public class RetrievalService : IDisposable
             allChunks.AddRange(chunks);
         }
 
-        // Deduplicate by chunk ID
+        // Deduplicate by chunk ID so reranking does not double-count context pulled by multiple variants.
         var uniqueChunks = allChunks
             .GroupBy(c => c.Id)
             .Select(g => g.First())
@@ -82,7 +86,7 @@ public class RetrievalService : IDisposable
     }
 
     /// <summary>
-    /// Check if system is ready (Ollama available, indexes loaded)
+    /// Performs a readiness check before serving queries, ensuring Ollama and the FAISS index are reachable.
     /// </summary>
     public async Task<bool> IsReadyAsync()
     {

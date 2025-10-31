@@ -13,10 +13,13 @@ public sealed class TempDirectory : IDisposable
 
     public TempDirectory()
     {
-        Root = Path.Combine(System.IO.Path.GetTempPath(), "pyragix-net-tests", Guid.NewGuid().ToString("N"));
+        Root = Path.Combine(Path.GetTempPath(), "pyragix-net-tests", Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(Root);
     }
 
+    /// <summary>
+    /// Resolves additional relative segments beneath the temporary root directory.
+    /// </summary>
     public string Resolve(params string[] segments)
     {
         if (segments.Length == 0)

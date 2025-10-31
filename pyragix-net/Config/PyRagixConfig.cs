@@ -4,7 +4,8 @@ using Tomlyn.Extensions.Configuration;
 namespace PyRagix.Net.Config;
 
 /// <summary>
-/// Configuration for PyRagix.Net RAG engine - loaded from settings.toml
+/// Centralised configuration backing the ingestion and retrieval pipelines.
+/// Values are typically sourced from <c>settings.toml</c> and mirrored from the Python project.
 /// </summary>
 public class PyRagixConfig
 {
@@ -57,7 +58,8 @@ public class PyRagixConfig
     public int OcrMaxDpi { get; set; } = 300;
 
     /// <summary>
-    /// Load configuration from TOML file
+    /// Hydrates a <see cref="PyRagixConfig"/> instance from the specified TOML file.
+    /// Falls back to in-memory defaults when the file is absent so the engine can bootstrap fresh environments.
     /// </summary>
     public static PyRagixConfig LoadFromToml(string path = "settings.toml")
     {
@@ -72,22 +74,27 @@ public class PyRagixConfig
     }
 
     /// <summary>
-    /// Validate configuration
+    /// Asserts that the loaded values fall within the supported ranges for the pipeline components.
     /// </summary>
     public void Validate()
     {
+        // Chunking must produce forward progress so downstream embedding batches have content to process.
         if (ChunkSize <= 0)
             throw new InvalidOperationException("ChunkSize must be greater than 0");
 
+        // Overlap larger than the window would duplicate entire chunks and break sequential ingestion.
         if (ChunkOverlap >= ChunkSize)
             throw new InvalidOperationException("ChunkOverlap must be less than ChunkSize");
 
+        // Reciprocal rank fusion relies on alpha being a proportion between semantic/keyword scorers.
         if (HybridAlpha < 0 || HybridAlpha > 1)
             throw new InvalidOperationException("HybridAlpha must be between 0 and 1");
 
+        // Retrieval should always surface at least one chunk to the generator.
         if (DefaultTopK <= 0)
             throw new InvalidOperationException("DefaultTopK must be greater than 0");
 
+        // Expansion count controls the number of extra embeddings to generate.
         if (QueryExpansionCount < 1)
             throw new InvalidOperationException("QueryExpansionCount must be at least 1");
     }

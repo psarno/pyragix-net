@@ -4,6 +4,9 @@ using Xunit;
 
 namespace PyRagix.Net.Tests;
 
+/// <summary>
+/// Exercises the document processor to confirm HTML clean-up and unsupported format handling match expectations.
+/// </summary>
 public class DocumentProcessorTests
 {
     [Fact]
@@ -33,6 +36,7 @@ public class DocumentProcessorTests
 
             var text = await processor.ExtractTextAsync(fileName);
 
+            // Scripts/styles should be removed and whitespace collapsed for the chunker.
             Assert.Equal("Heading Some text", text);
         }
         finally
@@ -55,6 +59,7 @@ public class DocumentProcessorTests
 
         try
         {
+            // Any file type outside the known set should raise NotSupportedException.
             await Assert.ThrowsAsync<NotSupportedException>(() => processor.ExtractTextAsync(fileName));
         }
         finally

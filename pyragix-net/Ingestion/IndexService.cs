@@ -11,7 +11,8 @@ using PyRagix.Net.Ingestion.Vector;
 namespace PyRagix.Net.Ingestion;
 
 /// <summary>
-/// Manages dual indexing: FAISS (vector) + Lucene (BM25 keyword)
+/// Persists chunk content to SQLite, FAISS, and Lucene so retrieval can perform hybrid semantic + keyword search.
+/// Maintains the one-to-one relationship between database IDs and FAISS vector IDs.
 /// </summary>
 public class IndexService : IDisposable
 {
@@ -22,6 +23,9 @@ public class IndexService : IDisposable
     private IndexWriter? _luceneWriter;
     private FSDirectory? _luceneDirectory;
 
+    /// <summary>
+    /// Creates the index handles eagerly so ingestion can reuse them for the lifetime of the service.
+    /// </summary>
     public IndexService(PyRagixConfig config, PyRagixDbContext dbContext, IVectorIndexFactory? vectorIndexFactory = null)
     {
         _config = config;
@@ -30,6 +34,9 @@ public class IndexService : IDisposable
         InitializeIndexes();
     }
 
+    /// <summary>
+    /// Sets up the FAISS and Lucene handles so ingestion can immediately start writing.
+    /// </summary>
     private void InitializeIndexes()
     {
         // Initialize FAISS index (Flat IP = Inner Product for cosine similarity)
@@ -46,7 +53,7 @@ public class IndexService : IDisposable
     }
 
     /// <summary>
-    /// Add a batch of chunks to both FAISS and Lucene indexes
+    /// Adds the provided chunk batch to SQLite, FAISS, and Lucene so all stores remain in sync.
     /// </summary>
     public async Task AddChunksAsync(List<(string content, float[] embedding, ChunkMetadata metadata)> chunks)
     {
@@ -55,7 +62,7 @@ public class IndexService : IDisposable
             throw new InvalidOperationException("Indexes not initialized");
         }
 
-        // Add to SQLite
+        // Add to SQLite first so we get the auto-incremented IDs required by FAISS.
         foreach (var chunk in chunks)
         {
             _dbContext.Chunks.Add(chunk.metadata);
@@ -82,7 +89,7 @@ public class IndexService : IDisposable
     }
 
     /// <summary>
-    /// Save FAISS index to disk
+    /// Persists the in-memory FAISS index to disk so future retrieval runs can load it without re-ingestion.
     /// </summary>
     public void SaveFaissIndex()
     {
@@ -95,7 +102,7 @@ public class IndexService : IDisposable
     }
 
     /// <summary>
-    /// Load existing FAISS index from disk
+    /// Rehydrates the FAISS index from disk, replacing any in-memory instance.
     /// </summary>
     public void LoadFaissIndex()
     {
@@ -107,13 +114,16 @@ public class IndexService : IDisposable
     }
 
     /// <summary>
-    /// Get total number of indexed vectors
+    /// Returns the number of vectors currently stored in FAISS so callers can report ingestion status.
     /// </summary>
     public long GetIndexSize()
     {
         return _vectorIndex?.Count ?? 0;
     }
 
+    /// <summary>
+    /// Releases Lucene and FAISS resources once ingestion has completed.
+    /// </summary>
     public void Dispose()
     {
         _luceneWriter?.Dispose();
@@ -121,6 +131,9 @@ public class IndexService : IDisposable
         _vectorIndex?.Dispose();
     }
 
+    /// <summary>
+    /// Normalises the configured Lucene path so relative locations resolve against the current working directory.
+    /// </summary>
     private string ResolveLucenePath()
     {
         var lucenePath = _config.LuceneIndexPath;

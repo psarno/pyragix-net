@@ -7,7 +7,8 @@ using PyRagix.Net.Config;
 namespace PyRagix.Net.Ingestion;
 
 /// <summary>
-/// Multi-format document processor (PDF, HTML, images via OCR)
+/// Extracts canonical text from supported document formats so downstream chunking can operate on plain strings.
+/// Handles PDFs, HTML, and images (via OCR) to mirror the Python pipeline.
 /// </summary>
 public class DocumentProcessor : IDisposable
 {
@@ -15,6 +16,9 @@ public class DocumentProcessor : IDisposable
     private TesseractEngine? _ocrEngine;
     private readonly HtmlParser _htmlParser;
 
+    /// <summary>
+    /// Prepares the processor with configuration and pre-parsed HTML helpers.
+    /// </summary>
     public DocumentProcessor(PyRagixConfig config)
     {
         _config = config;
@@ -22,7 +26,7 @@ public class DocumentProcessor : IDisposable
     }
 
     /// <summary>
-    /// Extract text from any supported document format
+    /// Detects the file extension and dispatches to the appropriate extraction strategy.
     /// </summary>
     public async Task<string> ExtractTextAsync(string filePath)
     {
@@ -38,7 +42,7 @@ public class DocumentProcessor : IDisposable
     }
 
     /// <summary>
-    /// Extract text from PDF using PdfPig
+    /// Reads all pages from the PDF and joins the text into a single string separated by blank lines.
     /// </summary>
     private async Task<string> ExtractFromPdfAsync(string filePath)
     {
@@ -51,14 +55,14 @@ public class DocumentProcessor : IDisposable
     }
 
     /// <summary>
-    /// Extract text from HTML using AngleSharp
+    /// Uses AngleSharp to parse the HTML and returns the visible body text, stripping scripts and styles.
     /// </summary>
     private async Task<string> ExtractFromHtmlAsync(string filePath)
     {
         var html = await File.ReadAllTextAsync(filePath);
         var document = await _htmlParser.ParseDocumentAsync(html);
 
-        // Remove script and style tags
+        // Strip out non-visible content so OCR-like noise does not reach the chunker.
         var scriptsAndStyles = document.QuerySelectorAll("script, style");
         foreach (var element in scriptsAndStyles)
         {
@@ -73,7 +77,7 @@ public class DocumentProcessor : IDisposable
     }
 
     /// <summary>
-    /// Extract text from image using Tesseract OCR
+    /// Runs OCR over the supplied image, cycling through multiple DPI attempts to improve recognition.
     /// </summary>
     private async Task<string> ExtractFromImageAsync(string filePath)
     {
@@ -97,7 +101,7 @@ public class DocumentProcessor : IDisposable
                     using var page = _ocrEngine.Process(img, PageSegMode.Auto);
                     var text = page.GetText();
 
-                    // If we got reasonable text, return it
+                    // Return the first substantive result; subsequent DPI attempts are unnecessary at this point.
                     if (!string.IsNullOrWhiteSpace(text) && text.Length > 10)
                     {
                         return text;
@@ -115,7 +119,7 @@ public class DocumentProcessor : IDisposable
     }
 
     /// <summary>
-    /// Initialize Tesseract OCR engine (lazy)
+    /// Lazily spins up the Tesseract engine so we only pay the startup cost when OCR is actually required.
     /// </summary>
     private void InitializeOcr()
     {
@@ -133,7 +137,7 @@ public class DocumentProcessor : IDisposable
     }
 
     /// <summary>
-    /// Clean extracted text (remove excessive whitespace)
+    /// Collapses repeated whitespace characters to stabilise downstream tokenisation.
     /// </summary>
     private string CleanText(string text)
     {
@@ -142,6 +146,9 @@ public class DocumentProcessor : IDisposable
         return text.Trim();
     }
 
+    /// <summary>
+    /// Disposes the lazily created Tesseract engine when OCR is no longer required.
+    /// </summary>
     public void Dispose()
     {
         _ocrEngine?.Dispose();

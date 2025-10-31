@@ -1,12 +1,15 @@
 using PyRagix.Net.Core;
 
+/// <summary>
+/// Minimal console host that exposes ingestion and querying commands for the PyRagix.Net engine.
+/// </summary>
 internal class Program
 {
     private static async Task Main(string[] args)
     {
         Console.WriteLine("PyRagix.Net - Local RAG Engine\n");
 
-        // Load configuration and create engine
+        // Load configuration and create engine so both commands share the same instance.
         var engine = RagEngine.FromSettings("../pyragix-net/settings.toml");
 
         if (args.Length == 0)
@@ -54,6 +57,9 @@ internal class Program
         }
     }
 
+    /// <summary>
+    /// Runs the ingestion pipeline against the specified folder.
+    /// </summary>
     private static async Task IngestAsync(RagEngine engine, string folderPath)
     {
         Console.WriteLine($"Ingesting documents from: {folderPath}\n");
@@ -68,6 +74,9 @@ internal class Program
         Console.WriteLine("\nIngestion complete!");
     }
 
+    /// <summary>
+    /// Executes a single interactive question against the engine and prints the answer.
+    /// </summary>
     private static async Task QueryAsync(RagEngine engine, string question)
     {
         Console.WriteLine($"Question: {question}\n");

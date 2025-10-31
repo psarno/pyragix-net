@@ -4,6 +4,9 @@ using Xunit;
 
 namespace PyRagix.Net.Tests;
 
+/// <summary>
+/// Verifies that <see cref="SemanticChunker"/> honours both semantic and fixed-window chunking modes.
+/// </summary>
 public class SemanticChunkerTests
 {
     [Fact]
@@ -21,6 +24,7 @@ public class SemanticChunkerTests
 
         var chunks = chunker.ChunkText(text);
 
+        // Fixed window chunking should march forward by ChunkSize - ChunkOverlap characters each time.
         Assert.Equal(4, chunks.Count);
         Assert.Equal(text.Substring(0, 10), chunks[0]);
         Assert.Equal(text.Substring(8, 10), chunks[1]);
@@ -42,6 +46,7 @@ public class SemanticChunkerTests
 
         var chunks = chunker.ChunkText(string.Empty);
 
+        // Guard against accidental creation of empty chunk entries.
         Assert.Empty(chunks);
     }
 
@@ -62,6 +67,7 @@ public class SemanticChunkerTests
 
         var chunks = chunker.ChunkText(text);
 
+        // Semantic mode should split on sentence boundaries and preserve the cadence of the original text.
         Assert.Equal(3, chunks.Count);
         Assert.Equal("This is sentence one.", chunks[0]);
         Assert.Equal("This is sentence two, which is longer.", chunks[1]);
