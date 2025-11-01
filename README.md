@@ -103,6 +103,23 @@ dotnet run -- ingest ./docs
 dotnet run -- query "What is retrieval-augmented generation?"
 ```
 
+### Vector Index Backends (Windows vs. Linux/WSL)
+
+PyRagix.Net selects the vector index implementation automatically:
+
+- **Windows (native)** – Uses [FaissNet](https://www.nuget.org/packages/FaissNet) with the FAISS C++ backend for best performance.
+- **Linux / macOS / WSL** – Uses the built-in managed inner-product index (no native dependencies). This keeps the project runnable when FAISS binaries are unavailable.
+
+When switching operating systems (e.g., migrating from Windows to WSL), delete previously generated vector artifacts before re-ingesting:
+
+```bash
+rm -f faiss_index.bin
+rm -f pyragix.db
+rm -rf lucene_index
+```
+
+Then rerun ingestion inside the target environment so the index is regenerated in the correct format.
+
 ## Usage
 
 ### As a Library

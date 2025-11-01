@@ -203,7 +203,7 @@ PyRagix.Net/
 - **Microsoft.ML.OnnxRuntime.Gpu** (1.23.2+) - Optional GPU acceleration
 
 ### Search
-- **FaissNet** (1.1.0+) - Vector similarity search
+- **FaissNet** (1.1.0+, Windows) - Native FAISS vector search
 - **Lucene.Net** (4.8.0+) - BM25 keyword search
 - **Lucene.Net.Analysis.Common** - Text analyzers
 - **Lucene.Net.QueryParser** - Query parsing
@@ -231,9 +231,20 @@ PyRagix.Net/
 
 ## Troubleshooting Native Vector Indexes
 
-FAISS powers the default vector index via the native `FaissNet` bindings. If you hit `DllNotFoundException` or run in an environment where the native library is unavailable:
+PyRagix.Net automatically selects a vector index backend:
 
-- The vector index is abstracted behind `IVectorIndexFactory` (see `pyragix-net/Ingestion/Vector`). You can supply your own factory when constructing `IndexService` or `HybridRetriever`. The test suite ships an `InMemoryVectorIndexFactory` example under `PyRagix.Net.Tests/TestInfrastructure` that uses pure C# data structures for predictable behaviour.
+- **Windows** → `FaissNet` (native FAISS bindings)
+- **Linux / macOS (including WSL)** → managed fallback (`ManagedVectorIndex`) with exhaustive inner-product search
+
+If the engine detects an old FAISS artifact after switching operating systems, delete the generated files and re-run ingestion:
+
+```bash
+rm -f faiss_index.bin
+rm -f pyragix.db
+rm -rf lucene_index
+```
+
+Need a different backend? The vector index is abstracted behind `IVectorIndexFactory` (see `pyragix-net/Ingestion/Vector`). You can supply your own factory when constructing `IndexService` or `HybridRetriever`. The test suite ships an `InMemoryVectorIndexFactory` example under `PyRagix.Net.Tests/TestInfrastructure` that uses pure C# data structures for predictable behaviour.
 - In DI-friendly scenarios, register the factory you prefer and inject it:  
   ```csharp
   services.AddSingleton<IVectorIndexFactory, InMemoryVectorIndexFactory>();
