@@ -1,4 +1,5 @@
 using PyRagix.Net.Core;
+using PyRagix.Net.Ingestion;
 
 /// <summary>
 /// Minimal console host that exposes ingestion and querying commands for the PyRagix.Net engine.
@@ -62,7 +63,8 @@ internal class Program
     /// </summary>
     private static async Task IngestAsync(RagEngine engine, string folderPath)
     {
-        Console.WriteLine($"Ingesting documents from: {folderPath}\n");
+        Console.WriteLine($"Ingesting documents from: {folderPath}");
+        Console.WriteLine();
 
         if (!Directory.Exists(folderPath))
         {
@@ -70,8 +72,23 @@ internal class Program
             return;
         }
 
-        await engine.IngestDocumentsAsync(folderPath);
-        Console.WriteLine("\nIngestion complete!");
+        using var consoleProgress = new pyragix_net_console.ConsoleIngestionProgress();
+
+        try
+        {
+            var finalUpdate = await consoleProgress.RunAsync(engine.IngestDocumentsAsync(folderPath, progress: consoleProgress));
+            Console.WriteLine(finalUpdate.Message);
+        }
+        catch
+        {
+            var lastUpdate = consoleProgress.LastUpdate;
+            if (lastUpdate.Stage == IngestionStage.Error && !string.IsNullOrWhiteSpace(lastUpdate.Message))
+            {
+                Console.WriteLine(lastUpdate.Message);
+            }
+
+            throw;
+        }
     }
 
     /// <summary>

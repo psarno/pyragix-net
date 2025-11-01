@@ -1,6 +1,7 @@
 using PyRagix.Net.Config;
 using PyRagix.Net.Ingestion;
 using PyRagix.Net.Retrieval;
+using System.Threading;
 
 namespace PyRagix.Net.Core;
 
@@ -37,10 +38,12 @@ public class RagEngine : IDisposable
     /// </summary>
     /// <param name="folderPath">Path to folder containing documents (PDF, HTML, images)</param>
     /// <param name="fresh">If true, creates new indexes. If false, appends to existing.</param>
-    public async Task IngestDocumentsAsync(string folderPath, bool fresh = false)
+    /// <param name="progress">Optional progress sink for reporting ingestion state.</param>
+    /// <param name="cancellationToken">Token that cancels ingestion if requested.</param>
+    public async Task IngestDocumentsAsync(string folderPath, bool fresh = false, IProgress<IngestionProgressUpdate>? progress = null, CancellationToken cancellationToken = default)
     {
         _ingestionService ??= new IngestionService(_config);
-        await _ingestionService.IngestFolderAsync(folderPath, fresh);
+        await _ingestionService.IngestFolderAsync(folderPath, fresh, progress, cancellationToken);
     }
 
     /// <summary>

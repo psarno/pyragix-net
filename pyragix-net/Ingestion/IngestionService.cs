@@ -2,6 +2,7 @@ using PyRagix.Net.Config;
 using PyRagix.Net.Core.Data;
 using PyRagix.Net.Core.Models;
 using System.IO;
+using System.Threading;
 
 namespace PyRagix.Net.Ingestion;
 
@@ -33,58 +34,109 @@ public class IngestionService : IDisposable
     /// <summary>
     /// Walks the target folder recursively, processing each supported file into searchable chunks.
     /// </summary>
-    public async Task IngestFolderAsync(string folderPath, bool fresh = false)
+    /// <param name="folderPath">Root directory that will be scanned for supported documents.</param>
+    /// <param name="fresh">If true, existing artifacts are deleted before ingestion begins.</param>
+    /// <param name="progress">Optional progress sink that receives structured updates about ingestion state.</param>
+    /// <param name="cancellationToken">Token that allows callers to request an early exit.</param>
+    public async Task IngestFolderAsync(string folderPath, bool fresh = false, IProgress<IngestionProgressUpdate>? progress = null, CancellationToken cancellationToken = default)
     {
         if (!Directory.Exists(folderPath))
         {
             throw new DirectoryNotFoundException($"Folder not found: {folderPath}");
         }
 
-        Console.WriteLine($"Starting ingestion from: {folderPath}");
+        progress?.Report(IngestionProgressUpdate.Scanning(folderPath));
+        if (progress == null)
+        {
+            Console.WriteLine($"Starting ingestion from: {folderPath}");
+        }
 
         if (fresh)
         {
-            Console.WriteLine("Fresh ingestion requested - clearing existing database and index artifacts...");
+            progress?.Report(IngestionProgressUpdate.Resetting());
+            if (progress == null)
+            {
+                Console.WriteLine("Fresh ingestion requested - clearing existing database and index artifacts...");
+            }
+
             ResetStorage();
-            Console.WriteLine("Existing artifacts removed. Rebuilding indexes from scratch.");
+            if (progress == null)
+            {
+                Console.WriteLine("Existing artifacts removed. Rebuilding indexes from scratch.");
+            }
         }
 
         // Collect the worklist up front; ingestion order matters because FAISS IDs mirror ChunkMetadata.Id.
         var files = GetSupportedFiles(folderPath);
-        Console.WriteLine($"Found {files.Count} files to process");
+        progress?.Report(IngestionProgressUpdate.Discovery(files.Count, folderPath));
+        if (progress == null)
+        {
+            Console.WriteLine($"Found {files.Count} files to process");
+        }
 
         // Process each file
         int processedCount = 0;
         foreach (var file in files)
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            progress?.Report(IngestionProgressUpdate.FileStarted(file, processedCount, files.Count));
+            if (progress == null)
+            {
+                Console.WriteLine($"Processing {file}...");
+            }
+
             try
             {
-                await IngestFileAsync(file);
+                await IngestFileAsync(file, progress, processedCount, files.Count, cancellationToken);
                 processedCount++;
-                Console.WriteLine($"[{processedCount}/{files.Count}] Processed: {Path.GetFileName(file)}");
+                progress?.Report(IngestionProgressUpdate.FileCompleted(file, processedCount, files.Count));
+                if (progress == null)
+                {
+                    Console.WriteLine($"[{processedCount}/{files.Count}] Processed: {Path.GetFileName(file)}");
+                }
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Error processing {file}: {ex.Message}");
+                progress?.Report(IngestionProgressUpdate.Error(file, ex, processedCount, files.Count));
+                if (progress == null)
+                {
+                    Console.WriteLine($"Error processing {file}: {ex.Message}");
+                }
             }
         }
 
+        progress?.Report(IngestionProgressUpdate.Persisting(processedCount, files.Count));
+        if (progress == null)
+        {
+            Console.WriteLine("Persisting FAISS index...");
+        }
+
         // Persist FAISS index once everything has been written to SQLite so IDs remain consistent.
-        _indexService.SaveFaissIndex();
-        Console.WriteLine($"\nIngestion complete! Indexed {_indexService.GetIndexSize()} chunks from {processedCount} files.");
+        _indexService.SaveVectorIndex();
+        var totalChunks = _indexService.GetIndexSize();
+        progress?.Report(IngestionProgressUpdate.Completed(processedCount, files.Count, totalChunks));
+        if (progress == null)
+        {
+            Console.WriteLine($"\nIngestion complete! Indexed {totalChunks} chunks from {processedCount} files.");
+        }
     }
 
     /// <summary>
     /// Runs the extraction → chunking → embedding → indexing flow for a single file.
     /// </summary>
-    private async Task IngestFileAsync(string filePath)
+    private async Task IngestFileAsync(string filePath, IProgress<IngestionProgressUpdate>? progress, int filesCompleted, int totalFiles, CancellationToken cancellationToken)
     {
         // Extract the canonical text representation for this document.
         var text = await _documentProcessor.ExtractTextAsync(filePath);
 
         if (string.IsNullOrWhiteSpace(text))
         {
-            Console.WriteLine($"No text extracted from: {filePath}");
+            progress?.Report(IngestionProgressUpdate.FileSkipped(filePath, "no extractable text", filesCompleted, totalFiles));
+            if (progress == null)
+            {
+                Console.WriteLine($"No text extracted from: {filePath}");
+            }
             return;
         }
 
@@ -93,11 +145,19 @@ public class IngestionService : IDisposable
 
         if (chunks.Count == 0)
         {
-            Console.WriteLine($"No chunks created from: {filePath}");
+            progress?.Report(IngestionProgressUpdate.FileSkipped(filePath, "chunker produced no content", filesCompleted, totalFiles));
+            if (progress == null)
+            {
+                Console.WriteLine($"No chunks created from: {filePath}");
+            }
             return;
         }
 
+        progress?.Report(IngestionProgressUpdate.Chunking(filePath, chunks.Count, filesCompleted, totalFiles));
+
         // Generate vector representations that feed both FAISS and hybrid scoring.
+        progress?.Report(IngestionProgressUpdate.Embedding(filePath, chunks.Count, filesCompleted, totalFiles));
+        cancellationToken.ThrowIfCancellationRequested();
         var embeddings = await _embeddingService.EmbedBatchAsync(chunks);
 
         // Create metadata rows that capture origin and ordering information for each chunk.
@@ -117,6 +177,8 @@ public class IngestionService : IDisposable
         }
 
         // Persist metadata + vectors to their respective storage engines in one call.
+        progress?.Report(IngestionProgressUpdate.Indexing(filePath, chunkData.Count, filesCompleted, totalFiles));
+        cancellationToken.ThrowIfCancellationRequested();
         await _indexService.AddChunksAsync(chunkData);
     }
 
