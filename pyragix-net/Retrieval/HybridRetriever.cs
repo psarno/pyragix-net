@@ -33,7 +33,7 @@ public class HybridRetriever : IDisposable
     {
         _config = config;
         _dbContext = dbContext;
-        _vectorIndexFactory = vectorIndexFactory ?? FaissVectorIndexFactory.Instance;
+        _vectorIndexFactory = vectorIndexFactory ?? VectorIndexFactoryResolver.GetDefault();
         LoadIndexes();
     }
 
@@ -45,8 +45,16 @@ public class HybridRetriever : IDisposable
         // Load FAISS index
         if (File.Exists(_config.FaissIndexPath))
         {
-            _vectorIndex?.Dispose();
-            _vectorIndex = _vectorIndexFactory.Load(_config.FaissIndexPath);
+            try
+            {
+                _vectorIndex?.Dispose();
+                _vectorIndex = _vectorIndexFactory.Load(_config.FaissIndexPath);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"WARNING: Vector index at '{_config.FaissIndexPath}' could not be loaded ({ex.Message}). Delete the file and re-run ingestion.");
+                _vectorIndex = null;
+            }
         }
 
         // Load Lucene index so keyword queries can be executed without re-ingesting documents.
@@ -88,7 +96,7 @@ public class HybridRetriever : IDisposable
     {
         if (_vectorIndex == null)
         {
-            throw new InvalidOperationException("FAISS index not loaded");
+            throw new InvalidOperationException("Vector index not loaded");
         }
 
         return await Task.Run(async () =>

@@ -64,7 +64,7 @@ public class HybridRetrieverIntegrationTests
             };
 
             await indexService.AddChunksAsync(chunkBatch);
-            indexService.SaveFaissIndex();
+            indexService.SaveVectorIndex();
         }
 
         await using var retrievalContext = new PyRagixDbContext(config.DatabasePath);

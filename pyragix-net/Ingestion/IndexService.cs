@@ -30,7 +30,7 @@ public class IndexService : IDisposable
     {
         _config = config;
         _dbContext = dbContext;
-        _vectorIndexFactory = vectorIndexFactory ?? FaissVectorIndexFactory.Instance;
+        _vectorIndexFactory = vectorIndexFactory ?? VectorIndexFactoryResolver.GetDefault();
         InitializeIndexes();
     }
 
@@ -91,20 +91,20 @@ public class IndexService : IDisposable
     /// <summary>
     /// Persists the in-memory FAISS index to disk so future retrieval runs can load it without re-ingestion.
     /// </summary>
-    public void SaveFaissIndex()
+    public void SaveVectorIndex()
     {
         if (_vectorIndex == null)
         {
-            throw new InvalidOperationException("FAISS index not initialized");
+            throw new InvalidOperationException("Vector index not initialized");
         }
 
         _vectorIndex.Save(_config.FaissIndexPath);
     }
 
     /// <summary>
-    /// Rehydrates the FAISS index from disk, replacing any in-memory instance.
+    /// Rehydrates the vector index from disk, replacing any in-memory instance.
     /// </summary>
-    public void LoadFaissIndex()
+    public void LoadVectorIndex()
     {
         if (File.Exists(_config.FaissIndexPath))
         {

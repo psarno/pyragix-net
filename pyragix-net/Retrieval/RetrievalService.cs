@@ -100,7 +100,7 @@ public class RetrievalService : IDisposable
 
         if (!File.Exists(_config.FaissIndexPath))
         {
-            Console.WriteLine("ERROR: FAISS index not found. Run ingestion first.");
+            Console.WriteLine("ERROR: Vector index not found. Run ingestion first.");
             return false;
         }
 
