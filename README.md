@@ -1,3 +1,5 @@
+<img width="500" height="auto" alt="image" src="https://github.com/user-attachments/assets/4c3fe1f7-b078-4fa9-99df-779c7f0867d1" />
+
 # PyRagix.Net
 
 A **local-first** Retrieval-Augmented Generation (RAG) engine for .NET 9.0, porting the core capabilities of [PyRagix](https://github.com/psarno/pyragix) to C#. PyRagix.Net implements modern RAG techniques including query expansion, hybrid search (semantic + keyword), cross-encoder reranking, and local LLM generation via Ollama—all while maintaining complete data privacy through local-only operation.
