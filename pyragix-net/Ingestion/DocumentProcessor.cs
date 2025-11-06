@@ -2,7 +2,9 @@ using UglyToad.PdfPig;
 using AngleSharp;
 using AngleSharp.Html.Parser;
 using Tesseract;
+using Polly.Retry;
 using PyRagix.Net.Config;
+using PyRagix.Net.Core.Resilience;
 
 namespace PyRagix.Net.Ingestion;
 
@@ -15,6 +17,7 @@ public class DocumentProcessor : IDisposable
     private readonly PyRagixConfig _config;
     private TesseractEngine? _ocrEngine;
     private readonly HtmlParser _htmlParser;
+    private readonly AsyncRetryPolicy _ocrRetryPolicy;
 
     /// <summary>
     /// Prepares the processor with configuration and pre-parsed HTML helpers.
@@ -23,6 +26,7 @@ public class DocumentProcessor : IDisposable
     {
         _config = config;
         _htmlParser = new HtmlParser();
+        _ocrRetryPolicy = RetryPolicies.CreateAsyncPolicy("OCR extraction");
     }
 
     /// <summary>
@@ -81,7 +85,7 @@ public class DocumentProcessor : IDisposable
     /// </summary>
     private async Task<string> ExtractFromImageAsync(string filePath)
     {
-        return await Task.Run(() =>
+        return await _ocrRetryPolicy.ExecuteAsync(() => Task.Run(() =>
         {
             InitializeOcr();
 
@@ -115,7 +119,7 @@ public class DocumentProcessor : IDisposable
             }
 
             return string.Empty;
-        });
+        }));
     }
 
     /// <summary>

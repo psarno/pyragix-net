@@ -3,10 +3,12 @@ using Lucene.Net.Documents;
 using Lucene.Net.Index;
 using Lucene.Net.Store;
 using Lucene.Net.Util;
+using Polly.Retry;
 using PyRagix.Net.Config;
 using PyRagix.Net.Core.Data;
 using PyRagix.Net.Core.Models;
 using PyRagix.Net.Ingestion.Vector;
+using PyRagix.Net.Core.Resilience;
 
 namespace PyRagix.Net.Ingestion;
 
@@ -22,6 +24,8 @@ public class IndexService : IDisposable
     private IVectorIndex? _vectorIndex;
     private IndexWriter? _luceneWriter;
     private FSDirectory? _luceneDirectory;
+    private readonly RetryPolicy _vectorWriteRetryPolicy;
+    private readonly RetryPolicy _vectorLoadRetryPolicy;
 
     /// <summary>
     /// Creates the index handles eagerly so ingestion can reuse them for the lifetime of the service.
@@ -31,6 +35,8 @@ public class IndexService : IDisposable
         _config = config;
         _dbContext = dbContext;
         _vectorIndexFactory = vectorIndexFactory ?? VectorIndexFactoryResolver.GetDefault();
+        _vectorWriteRetryPolicy = RetryPolicies.CreateSyncPolicy("FAISS vector write");
+        _vectorLoadRetryPolicy = RetryPolicies.CreateSyncPolicy("FAISS vector load");
         InitializeIndexes();
     }
 
@@ -72,7 +78,7 @@ public class IndexService : IDisposable
         // Add to FAISS with explicit IDs
         var vectors = chunks.Select(c => c.embedding).ToArray();
         var ids = chunks.Select(c => (long)c.metadata.Id).ToArray();
-        _vectorIndex.AddWithIds(vectors, ids);
+        _vectorWriteRetryPolicy.Execute(() => _vectorIndex.AddWithIds(vectors, ids));
 
         // Add to Lucene (text for BM25)
         foreach (var chunk in chunks)
@@ -98,7 +104,7 @@ public class IndexService : IDisposable
             throw new InvalidOperationException("Vector index not initialized");
         }
 
-        _vectorIndex.Save(_config.FaissIndexPath);
+        _vectorWriteRetryPolicy.Execute(() => _vectorIndex.Save(_config.FaissIndexPath));
     }
 
     /// <summary>
@@ -108,8 +114,11 @@ public class IndexService : IDisposable
     {
         if (File.Exists(_config.FaissIndexPath))
         {
-            _vectorIndex?.Dispose();
-            _vectorIndex = _vectorIndexFactory.Load(_config.FaissIndexPath);
+            _vectorLoadRetryPolicy.Execute(() =>
+            {
+                _vectorIndex?.Dispose();
+                _vectorIndex = _vectorIndexFactory.Load(_config.FaissIndexPath);
+            });
         }
     }
 

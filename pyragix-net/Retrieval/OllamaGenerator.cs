@@ -1,7 +1,9 @@
+using Polly.Retry;
 using PyRagix.Net.Config;
 using PyRagix.Net.Core.Models;
 using System.Text;
 using System.Text.Json;
+using PyRagix.Net.Core.Resilience;
 
 namespace PyRagix.Net.Retrieval;
 
@@ -13,6 +15,7 @@ public class OllamaGenerator
 {
     private readonly PyRagixConfig _config;
     private readonly HttpClient _httpClient;
+    private readonly AsyncRetryPolicy _httpRetryPolicy;
 
     /// <summary>
     /// Configures a dedicated <see cref="HttpClient"/> with the project-level timeout.
@@ -24,6 +27,7 @@ public class OllamaGenerator
         {
             Timeout = TimeSpan.FromSeconds(config.RequestTimeout)
         };
+        _httpRetryPolicy = RetryPolicies.CreateHttpPolicy("Ollama answer generation");
     }
 
     /// <summary>
@@ -106,13 +110,16 @@ Answer:";
         var json = JsonSerializer.Serialize(requestBody);
         var content = new StringContent(json, Encoding.UTF8, "application/json");
 
-        var response = await _httpClient.PostAsync($"{_config.OllamaEndpoint}/api/generate", content);
-        response.EnsureSuccessStatusCode();
+        return await _httpRetryPolicy.ExecuteAsync(async () =>
+        {
+            var response = await _httpClient.PostAsync($"{_config.OllamaEndpoint}/api/generate", content);
+            response.EnsureSuccessStatusCode();
 
-        var responseJson = await response.Content.ReadAsStringAsync();
-        var doc = JsonDocument.Parse(responseJson);
+            var responseJson = await response.Content.ReadAsStringAsync();
+            var doc = JsonDocument.Parse(responseJson);
 
-        return doc.RootElement.GetProperty("response").GetString() ?? string.Empty;
+            return doc.RootElement.GetProperty("response").GetString() ?? string.Empty;
+        });
     }
 
     /// <summary>

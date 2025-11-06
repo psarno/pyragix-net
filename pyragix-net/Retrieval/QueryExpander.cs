@@ -1,4 +1,6 @@
+using Polly.Retry;
 using PyRagix.Net.Config;
+using PyRagix.Net.Core.Resilience;
 using System.Text.Json;
 using System.Text;
 
@@ -11,6 +13,7 @@ public class QueryExpander
 {
     private readonly PyRagixConfig _config;
     private readonly HttpClient _httpClient;
+    private readonly AsyncRetryPolicy _httpRetryPolicy;
 
     /// <summary>
     /// Initialises the expander with a dedicated <see cref="HttpClient"/> respecting the configured timeout.
@@ -22,6 +25,7 @@ public class QueryExpander
         {
             Timeout = TimeSpan.FromSeconds(config.RequestTimeout)
         };
+        _httpRetryPolicy = RetryPolicies.CreateHttpPolicy("Ollama query expansion");
     }
 
     /// <summary>
@@ -85,12 +89,15 @@ Alternative questions:";
         var json = JsonSerializer.Serialize(requestBody);
         var content = new StringContent(json, Encoding.UTF8, "application/json");
 
-        var response = await _httpClient.PostAsync($"{_config.OllamaEndpoint}/api/generate", content);
-        response.EnsureSuccessStatusCode();
+        return await _httpRetryPolicy.ExecuteAsync(async () =>
+        {
+            var response = await _httpClient.PostAsync($"{_config.OllamaEndpoint}/api/generate", content);
+            response.EnsureSuccessStatusCode();
 
-        var responseJson = await response.Content.ReadAsStringAsync();
-        var doc = JsonDocument.Parse(responseJson);
+            var responseJson = await response.Content.ReadAsStringAsync();
+            var doc = JsonDocument.Parse(responseJson);
 
-        return doc.RootElement.GetProperty("response").GetString() ?? string.Empty;
+            return doc.RootElement.GetProperty("response").GetString() ?? string.Empty;
+        });
     }
 }

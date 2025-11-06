@@ -1,6 +1,8 @@
 using Microsoft.ML.OnnxRuntime;
 using Microsoft.ML.OnnxRuntime.Tensors;
+using Polly.Retry;
 using PyRagix.Net.Config;
+using PyRagix.Net.Core.Resilience;
 using System.Text;
 using System.Text.RegularExpressions;
 
@@ -14,6 +16,7 @@ public class EmbeddingService : IDisposable
     private readonly InferenceSession _session;
     private readonly PyRagixConfig _config;
     private readonly int _maxTokens = 512; // Default for MiniLM models
+    private readonly AsyncRetryPolicy _inferenceRetryPolicy;
 
     /// <summary>
     /// Creates the ONNX session once so repeated batches reuse the same native resources.
@@ -21,6 +24,7 @@ public class EmbeddingService : IDisposable
     public EmbeddingService(PyRagixConfig config)
     {
         _config = config;
+        _inferenceRetryPolicy = RetryPolicies.CreateAsyncPolicy("ONNX embedding inference");
 
         // Configure session options for GPU if enabled
         var sessionOptions = new SessionOptions();
@@ -77,7 +81,7 @@ public class EmbeddingService : IDisposable
     /// </summary>
     private async Task<List<float[]>> ProcessBatchAsync(List<string> batch)
     {
-        return await Task.Run(() =>
+        return await _inferenceRetryPolicy.ExecuteAsync(() => Task.Run(() =>
         {
             var results = new List<float[]>();
 
@@ -115,7 +119,7 @@ public class EmbeddingService : IDisposable
             }
 
             return results;
-        });
+        }));
     }
 
     /// <summary>

@@ -4,11 +4,13 @@ using Lucene.Net.QueryParsers.Classic;
 using Lucene.Net.Search;
 using Lucene.Net.Store;
 using Lucene.Net.Util;
+using Polly.Retry;
 using PyRagix.Net.Config;
 using PyRagix.Net.Core.Data;
 using PyRagix.Net.Core.Models;
 using Microsoft.EntityFrameworkCore;
 using PyRagix.Net.Ingestion.Vector;
+using PyRagix.Net.Core.Resilience;
 
 namespace PyRagix.Net.Retrieval;
 
@@ -25,6 +27,7 @@ public class HybridRetriever : IDisposable
     private IndexReader? _luceneReader;
     private IndexSearcher? _luceneSearcher;
     private FSDirectory? _luceneDirectory;
+    private readonly RetryPolicy _vectorSearchRetryPolicy;
 
     /// <summary>
     /// Loads both FAISS and Lucene indexes so queries can be served immediately after construction.
@@ -34,6 +37,7 @@ public class HybridRetriever : IDisposable
         _config = config;
         _dbContext = dbContext;
         _vectorIndexFactory = vectorIndexFactory ?? VectorIndexFactoryResolver.GetDefault();
+        _vectorSearchRetryPolicy = RetryPolicies.CreateSyncPolicy("FAISS vector search");
         LoadIndexes();
     }
 
@@ -101,7 +105,7 @@ public class HybridRetriever : IDisposable
 
         return await Task.Run(async () =>
         {
-            var (_, indices) = _vectorIndex.Search(new[] { queryEmbedding }, k);
+            var (_, indices) = _vectorSearchRetryPolicy.Execute(() => _vectorIndex.Search(new[] { queryEmbedding }, k));
 
             var chunks = new List<ChunkMetadata>();
             for (int i = 0; i < indices[0].Length; i++)
