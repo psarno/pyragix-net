@@ -1,3 +1,4 @@
+using System;
 using PyRagix.Net.Config;
 using PyRagix.Net.Ingestion;
 using PyRagix.Net.Retrieval;
@@ -42,6 +43,7 @@ public class RagEngine : IDisposable
     /// <param name="cancellationToken">Token that cancels ingestion if requested.</param>
     public async Task IngestDocumentsAsync(string folderPath, bool fresh = false, IProgress<IngestionProgressUpdate>? progress = null, CancellationToken cancellationToken = default)
     {
+        _config.ValidateResources(ResourceValidationMode.Ingestion);
         _ingestionService ??= new IngestionService(_config);
         await _ingestionService.IngestFolderAsync(folderPath, fresh, progress, cancellationToken);
     }
@@ -54,6 +56,7 @@ public class RagEngine : IDisposable
     /// <returns>Generated answer based on retrieved context</returns>
     public async Task<string> QueryAsync(string question, int? topK = null)
     {
+        _config.ValidateResources(ResourceValidationMode.Retrieval);
         _retrievalService ??= new RetrievalService(_config);
 
         // Ensure critical dependencies (indexes + Ollama) are reachable before attempting retrieval.
@@ -70,6 +73,15 @@ public class RagEngine : IDisposable
     /// </summary>
     public async Task<bool> IsReadyAsync()
     {
+        if (!_config.TryValidateResources(ResourceValidationMode.Retrieval, out var errors))
+        {
+            foreach (var error in errors)
+            {
+                Console.WriteLine($"ERROR: {error}");
+            }
+            return false;
+        }
+
         _retrievalService ??= new RetrievalService(_config);
         return await _retrievalService.IsReadyAsync();
     }

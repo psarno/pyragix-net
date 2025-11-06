@@ -1,4 +1,7 @@
+using System;
+using System.IO;
 using PyRagix.Net.Config;
+using PyRagix.Net.Tests.TestInfrastructure;
 using Xunit;
 
 namespace PyRagix.Net.Tests;
@@ -105,5 +108,47 @@ public class PyRagixConfigTests
 
         // The pipeline requires at least one query variant to operate; zero should be rejected.
         Assert.Throws<InvalidOperationException>(() => config.Validate());
+    }
+
+    [Fact]
+    public void TryValidateResources_Ingestion_WhenEmbeddingMissing_ReturnsErrors()
+    {
+        var config = new PyRagixConfig
+        {
+            EmbeddingModelPath = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString(), "model.onnx")
+        };
+
+        var result = config.TryValidateResources(ResourceValidationMode.Ingestion, out var errors);
+
+        Assert.False(result);
+        Assert.Contains(errors, e => e.Contains("Embedding model", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public void TryValidateResources_Retrieval_WhenAllAssetsExist_Succeeds()
+    {
+        using var tempDir = new TempDirectory();
+        var embeddingPath = tempDir.Resolve("embedding.onnx");
+        var rerankerPath = tempDir.Resolve("reranker.onnx");
+        var faissPath = tempDir.Resolve("faiss_index.bin");
+        var dbPath = tempDir.Resolve("pyragix.db");
+
+        File.WriteAllText(embeddingPath, "test");
+        File.WriteAllText(rerankerPath, "test");
+        File.WriteAllText(faissPath, "test");
+        File.WriteAllText(dbPath, "test");
+
+        var config = new PyRagixConfig
+        {
+            EmbeddingModelPath = embeddingPath,
+            RerankerModelPath = rerankerPath,
+            FaissIndexPath = faissPath,
+            DatabasePath = dbPath
+        };
+
+        var result = config.TryValidateResources(ResourceValidationMode.Retrieval, out var errors);
+
+        Assert.True(result);
+        Assert.Empty(errors);
     }
 }

@@ -1,4 +1,7 @@
 using Microsoft.Extensions.Configuration;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
 using Tomlyn.Extensions.Configuration;
 
 namespace PyRagix.Net.Config;
@@ -98,4 +101,81 @@ public class PyRagixConfig
         if (QueryExpansionCount < 1)
             throw new InvalidOperationException("QueryExpansionCount must be at least 1");
     }
+
+    /// <summary>
+    /// Verifies that critical external assets exist before the engine starts work.
+    /// Returns <c>false</c> and populates <paramref name="errors"/> when files are missing.
+    /// </summary>
+    public bool TryValidateResources(ResourceValidationMode mode, out List<string> errors)
+    {
+        errors = new List<string>();
+
+        ValidateFileExists(EmbeddingModelPath, "Embedding model", errors);
+
+        if (EnableReranking && mode == ResourceValidationMode.Retrieval)
+        {
+            ValidateFileExists(RerankerModelPath, "Reranker model", errors);
+        }
+
+        if (mode == ResourceValidationMode.Retrieval)
+        {
+            ValidateFileExists(FaissIndexPath, "FAISS index", errors);
+            ValidateFileExists(DatabasePath, "Chunk metadata database", errors);
+        }
+
+        return errors.Count == 0;
+    }
+
+    /// <summary>
+    /// Throws when <see cref="TryValidateResources"/> reports missing assets.
+    /// </summary>
+    public void ValidateResources(ResourceValidationMode mode)
+    {
+        if (TryValidateResources(mode, out var errors))
+        {
+            return;
+        }
+
+        var message = "Configuration bootstrap failed:" + Environment.NewLine +
+                      string.Join(Environment.NewLine, errors.Select(e => $" - {e}"));
+        throw new InvalidOperationException(message);
+    }
+
+    private void ValidateFileExists(string? path, string description, List<string> errors)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            errors.Add($"{description} path is not configured.");
+            return;
+        }
+
+        var resolvedPath = ResolvePath(path);
+        if (!File.Exists(resolvedPath))
+        {
+            errors.Add($"{description} not found at '{resolvedPath}'.");
+        }
+    }
+
+    private static string ResolvePath(string path)
+    {
+        return Path.IsPathRooted(path)
+            ? path
+            : Path.Combine(Directory.GetCurrentDirectory(), path);
+    }
+}
+
+/// <summary>
+/// Indicates which pipeline stage is about to run so resource validation can require the appropriate assets.
+/// </summary>
+public enum ResourceValidationMode
+{
+    /// <summary>
+    /// Ingestion requires ONNX models but does not depend on existing indexes.
+    /// </summary>
+    Ingestion,
+
+    /// <summary>
+    /// Retrieval requires previously generated indexes in addition to ONNX assets.
+    /// </summary>
+    Retrieval
 }
