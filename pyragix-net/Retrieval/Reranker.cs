@@ -72,7 +72,6 @@ public class Reranker : IDisposable
             return scores
                 .OrderByDescending(s => s.score)
                 .Select(s => s.chunk)
-                .Take(_config.DefaultTopK)
                 .ToList();
         });
     }
