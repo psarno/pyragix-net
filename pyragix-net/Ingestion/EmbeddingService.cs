@@ -3,8 +3,8 @@ using Microsoft.ML.OnnxRuntime.Tensors;
 using Polly.Retry;
 using PyRagix.Net.Config;
 using PyRagix.Net.Core.Resilience;
-using System.Text;
-using System.Text.RegularExpressions;
+using PyRagix.Net.Core.Tokenization;
+using System.Linq;
 
 namespace PyRagix.Net.Ingestion;
 
@@ -15,8 +15,8 @@ public class EmbeddingService : IDisposable
 {
     private readonly InferenceSession _session;
     private readonly PyRagixConfig _config;
-    private readonly int _maxTokens = 512; // Default for MiniLM models
     private readonly AsyncRetryPolicy _inferenceRetryPolicy;
+    private readonly BertTokenizer _tokenizer;
 
     /// <summary>
     /// Creates the ONNX session once so repeated batches reuse the same native resources.
@@ -46,6 +46,9 @@ public class EmbeddingService : IDisposable
         }
 
         _session = new InferenceSession(config.EmbeddingModelPath, sessionOptions);
+
+        var tokenizerDirectory = BertTokenizer.InferAssetsDirectory(config.EmbeddingModelPath);
+        _tokenizer = new BertTokenizer(tokenizerDirectory);
     }
 
     /// <summary>
@@ -87,19 +90,17 @@ public class EmbeddingService : IDisposable
 
             foreach (var text in batch)
             {
-                // Simple tokenization (word-piece approximation)
-                var tokens = Tokenize(text);
+                var encoding = _tokenizer.Encode(text);
 
-                // Create input tensors
-                var inputIds = new DenseTensor<long>(new[] { 1, tokens.Length });
-                var attentionMask = new DenseTensor<long>(new[] { 1, tokens.Length });
-                var tokenTypeIds = new DenseTensor<long>(new[] { 1, tokens.Length });
+                var inputIds = new DenseTensor<long>(new[] { 1, encoding.InputIds.Length });
+                var attentionMask = new DenseTensor<long>(new[] { 1, encoding.AttentionMask.Length });
+                var tokenTypeIds = new DenseTensor<long>(new[] { 1, encoding.TokenTypeIds.Length });
 
-                for (int i = 0; i < tokens.Length; i++)
+                for (int i = 0; i < encoding.InputIds.Length; i++)
                 {
-                    inputIds[0, i] = tokens[i];
-                    attentionMask[0, i] = 1;
-                    tokenTypeIds[0, i] = 0;
+                    inputIds[0, i] = encoding.InputIds[i];
+                    attentionMask[0, i] = encoding.AttentionMask[i];
+                    tokenTypeIds[0, i] = encoding.TokenTypeIds[i];
                 }
 
                 var inputs = new List<NamedOnnxValue>
@@ -109,12 +110,10 @@ public class EmbeddingService : IDisposable
                     NamedOnnxValue.CreateFromTensor("token_type_ids", tokenTypeIds)
                 };
 
-                // Run inference
                 using var output = _session.Run(inputs);
                 var embedding = output.First().AsTensor<float>();
 
-                // Mean pooling (average across sequence dimension)
-                var vector = MeanPooling(embedding, tokens.Length);
+                var vector = MeanPooling(embedding, encoding.AttentionMask);
                 results.Add(vector);
             }
 
@@ -123,57 +122,45 @@ public class EmbeddingService : IDisposable
     }
 
     /// <summary>
-    /// Extremely lightweight tokenizer that mirrors the Python placeholder implementation.
-    /// Replace with a proper vocabulary-backed tokenizer when parity is required.
-    /// </summary>
-    private long[] Tokenize(string text)
-    {
-        // Lowercase and clean
-        text = text.ToLowerInvariant();
-        text = Regex.Replace(text, @"[^\w\s]", " ");
-
-        // Split into tokens
-        var words = text.Split(new[] { ' ', '\t', '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries);
-
-        // Simple hash-based vocabulary (maps to 0-30000 range)
-        // This is a SIMPLIFIED placeholder - real implementation should use model's vocab
-        var tokens = words.Take(_maxTokens - 2)
-            .Select(w => (long)(Math.Abs(w.GetHashCode()) % 30000 + 1))
-            .ToList();
-
-        // Add CLS and SEP tokens
-        tokens.Insert(0, 101); // [CLS]
-        tokens.Add(102); // [SEP]
-
-        // Pad to max length
-        while (tokens.Count < _maxTokens)
-        {
-            tokens.Add(0); // [PAD]
-        }
-
-        return tokens.Take(_maxTokens).ToArray();
-    }
-
-    /// <summary>
     /// Applies mean pooling across the sequence dimension followed by L2 normalisation, matching sentence-transformers defaults.
     /// </summary>
-    private float[] MeanPooling(Tensor<float> embeddings, int sequenceLength)
+    private float[] MeanPooling(Tensor<float> embeddings, long[] attentionMask)
     {
         var hiddenSize = _config.EmbeddingDimension;
         var result = new float[hiddenSize];
+        double maskSum = 0;
+
+        for (int token = 0; token < attentionMask.Length; token++)
+        {
+            if (attentionMask[token] == 0)
+            {
+                continue;
+            }
+
+            maskSum += 1;
+
+            for (int dim = 0; dim < hiddenSize; dim++)
+            {
+                result[dim] += embeddings[0, token, dim];
+            }
+        }
+
+        if (maskSum == 0)
+        {
+            maskSum = 1;
+        }
 
         for (int i = 0; i < hiddenSize; i++)
         {
-            float sum = 0;
-            for (int j = 0; j < sequenceLength; j++)
-            {
-                sum += embeddings[0, j, i];
-            }
-            result[i] = sum / sequenceLength;
+            result[i] = (float)(result[i] / maskSum);
         }
 
-        // L2 normalization
         var norm = Math.Sqrt(result.Sum(x => x * x));
+        if (norm == 0)
+        {
+            return result;
+        }
+
         for (int i = 0; i < hiddenSize; i++)
         {
             result[i] /= (float)norm;

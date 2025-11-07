@@ -23,4 +23,8 @@
     <ProjectReference Include="..\pyragix-net\pyragix-net.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <None Include="TestData\**\*" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
 </Project>

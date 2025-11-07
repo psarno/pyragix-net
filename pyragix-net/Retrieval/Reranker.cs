@@ -2,6 +2,7 @@ using Microsoft.ML.OnnxRuntime;
 using Microsoft.ML.OnnxRuntime.Tensors;
 using PyRagix.Net.Config;
 using PyRagix.Net.Core.Models;
+using PyRagix.Net.Core.Tokenization;
 
 namespace PyRagix.Net.Retrieval;
 
@@ -13,6 +14,7 @@ public class Reranker : IDisposable
 {
     private readonly PyRagixConfig _config;
     private readonly InferenceSession? _session;
+    private readonly BertTokenizer? _tokenizer;
 
     /// <summary>
     /// Initialises the ONNX session if reranking is enabled and the model file is present.
@@ -46,6 +48,9 @@ public class Reranker : IDisposable
         }
 
         _session = new InferenceSession(config.RerankerModelPath, sessionOptions);
+
+        var tokenizerDirectory = BertTokenizer.InferAssetsDirectory(config.RerankerModelPath);
+        _tokenizer = new BertTokenizer(tokenizerDirectory);
     }
 
     /// <summary>
@@ -53,7 +58,7 @@ public class Reranker : IDisposable
     /// </summary>
     public async Task<List<ChunkMetadata>> RerankAsync(string query, List<ChunkMetadata> chunks)
     {
-        if (!_config.EnableReranking || _session == null || chunks.Count == 0)
+        if (!_config.EnableReranking || _session == null || _tokenizer == null || chunks.Count == 0)
         {
             return chunks;
         }
@@ -81,22 +86,17 @@ public class Reranker : IDisposable
     /// </summary>
     private float ScorePair(string query, string document)
     {
-        // Format: [CLS] query [SEP] document [SEP]
-        var text = $"[CLS] {query} [SEP] {document} [SEP]";
+        var encoding = _tokenizer!.EncodePair(query, document);
 
-        // Simple tokenization (same as embedding service)
-        var tokens = Tokenize(text);
+        var inputIds = new DenseTensor<long>(new[] { 1, encoding.InputIds.Length });
+        var attentionMask = new DenseTensor<long>(new[] { 1, encoding.AttentionMask.Length });
+        var tokenTypeIds = new DenseTensor<long>(new[] { 1, encoding.TokenTypeIds.Length });
 
-        // Create input tensors
-        var inputIds = new DenseTensor<long>(new[] { 1, tokens.Length });
-        var attentionMask = new DenseTensor<long>(new[] { 1, tokens.Length });
-        var tokenTypeIds = new DenseTensor<long>(new[] { 1, tokens.Length });
-
-        for (int i = 0; i < tokens.Length; i++)
+        for (int i = 0; i < encoding.InputIds.Length; i++)
         {
-            inputIds[0, i] = tokens[i];
-            attentionMask[0, i] = 1;
-            tokenTypeIds[0, i] = 0;
+            inputIds[0, i] = encoding.InputIds[i];
+            attentionMask[0, i] = encoding.AttentionMask[i];
+            tokenTypeIds[0, i] = encoding.TokenTypeIds[i];
         }
 
         var inputs = new List<NamedOnnxValue>
@@ -112,31 +112,6 @@ public class Reranker : IDisposable
 
         // Return relevance score (typically at index [0,0])
         return logits[0, 0];
-    }
-
-    /// <summary>
-    /// Placeholder tokenizer that mirrors <see cref="EmbeddingService"/>; replace with a shared tokenizer when available.
-    /// </summary>
-    private long[] Tokenize(string text)
-    {
-        text = text.ToLowerInvariant();
-        text = System.Text.RegularExpressions.Regex.Replace(text, @"[^\w\s]", " ");
-
-        var words = text.Split(new[] { ' ', '\t', '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries);
-
-        var tokens = words.Take(510) // Leave room for CLS/SEP
-            .Select(w => (long)(Math.Abs(w.GetHashCode()) % 30000 + 1))
-            .ToList();
-
-        tokens.Insert(0, 101); // [CLS]
-        tokens.Add(102); // [SEP]
-
-        while (tokens.Count < 512)
-        {
-            tokens.Add(0); // [PAD]
-        }
-
-        return tokens.Take(512).ToArray();
     }
 
     public void Dispose()

@@ -1,0 +1,12 @@
+[PAD]
+[UNK]
+[CLS]
+[SEP]
+[MASK]
+hello
+world
+test
+##ing
+,
+!
+cafe

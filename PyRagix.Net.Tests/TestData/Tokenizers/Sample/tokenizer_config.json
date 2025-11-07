@@ -1,0 +1,11 @@
+{
+  "do_lower_case": true,
+  "tokenize_chinese_chars": false,
+  "strip_accents": null,
+  "unk_token": "[UNK]",
+  "pad_token": "[PAD]",
+  "cls_token": "[CLS]",
+  "sep_token": "[SEP]",
+  "pad_token_type_id": 0,
+  "model_max_length": 16
+}
