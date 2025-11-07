@@ -1,5 +1,6 @@
 using PyRagix.Net.Config;
 using PyRagix.Net.Ingestion;
+using UglyToad.PdfPig.Core;
 using Xunit;
 
 namespace PyRagix.Net.Tests;
@@ -61,6 +62,28 @@ public class DocumentProcessorTests
         {
             // Any file type outside the known set should raise NotSupportedException.
             await Assert.ThrowsAsync<NotSupportedException>(() => processor.ExtractTextAsync(fileName));
+        }
+        finally
+        {
+            if (File.Exists(fileName))
+            {
+                File.Delete(fileName);
+            }
+        }
+    }
+
+    [Fact]
+    public async Task ExtractTextAsync_WithCorruptedPdf_SurfacesPdfDocumentFormatException()
+    {
+        var config = new PyRagixConfig();
+        using var processor = new DocumentProcessor(config);
+
+        var fileName = $"{Guid.NewGuid():N}.pdf";
+        File.WriteAllText(fileName, "not a real pdf");
+
+        try
+        {
+            await Assert.ThrowsAsync<PdfDocumentFormatException>(() => processor.ExtractTextAsync(fileName));
         }
         finally
         {

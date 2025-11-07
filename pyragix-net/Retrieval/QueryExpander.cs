@@ -18,14 +18,16 @@ public class QueryExpander
     /// <summary>
     /// Initialises the expander with a dedicated <see cref="HttpClient"/> respecting the configured timeout.
     /// </summary>
-    public QueryExpander(PyRagixConfig config)
+    public QueryExpander(PyRagixConfig config, HttpClient? httpClient = null, AsyncRetryPolicy? httpRetryPolicy = null)
     {
         _config = config;
-        _httpClient = new HttpClient
+        _httpClient = httpClient ?? new HttpClient();
+        if (httpClient == null)
         {
-            Timeout = TimeSpan.FromSeconds(config.RequestTimeout)
-        };
-        _httpRetryPolicy = RetryPolicies.CreateHttpPolicy("Ollama query expansion");
+            _httpClient.Timeout = TimeSpan.FromSeconds(config.RequestTimeout);
+        }
+
+        _httpRetryPolicy = httpRetryPolicy ?? RetryPolicies.CreateHttpPolicy("Ollama query expansion");
     }
 
     /// <summary>

@@ -20,14 +20,16 @@ public class OllamaGenerator
     /// <summary>
     /// Configures a dedicated <see cref="HttpClient"/> with the project-level timeout.
     /// </summary>
-    public OllamaGenerator(PyRagixConfig config)
+    public OllamaGenerator(PyRagixConfig config, HttpClient? httpClient = null, AsyncRetryPolicy? httpRetryPolicy = null)
     {
         _config = config;
-        _httpClient = new HttpClient
+        _httpClient = httpClient ?? new HttpClient();
+        if (httpClient == null)
         {
-            Timeout = TimeSpan.FromSeconds(config.RequestTimeout)
-        };
-        _httpRetryPolicy = RetryPolicies.CreateHttpPolicy("Ollama answer generation");
+            _httpClient.Timeout = TimeSpan.FromSeconds(config.RequestTimeout);
+        }
+
+        _httpRetryPolicy = httpRetryPolicy ?? RetryPolicies.CreateHttpPolicy("Ollama answer generation");
     }
 
     /// <summary>

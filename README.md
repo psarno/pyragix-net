@@ -98,7 +98,7 @@ ollama serve
 # Run console app
 cd pyragix-net-console
 
-# Ingest documents
+# Ingest documents (append --fresh to rebuild indexes from scratch)
 dotnet run -- ingest ./docs
 
 # Query the RAG system
@@ -120,7 +120,7 @@ rm -f pyragix.db
 rm -rf lucene_index
 ```
 
-Then rerun ingestion inside the target environment so the index is regenerated in the correct format.
+Then rerun ingestion inside the target environment so the index is regenerated in the correct format. You can also run `dotnet run -- ingest ./docs --fresh` to let the CLI handle cleanup before rebuilding.
 
 ## Usage
 
@@ -148,7 +148,7 @@ var config = new PyRagixConfig
 };
 var engine = new RagEngine(config);
 
-// Ingest documents (PDF, HTML, images)
+// Ingest documents (PDF, HTML, images). Set fresh: true to recreate indexes from scratch.
 await engine.IngestDocumentsAsync("./my-documents", fresh: false);
 
 // Query with natural language
@@ -161,12 +161,14 @@ Console.WriteLine(answer);
 The included console app (`pyragix-net-console/`) demonstrates basic usage:
 
 ```bash
-# Ingest a folder of documents
+# Ingest a folder of documents (append --fresh to purge existing indexes)
 dotnet run -- ingest <folder_path>
 
 # Query the indexed documents
 dotnet run -- query "<your question>"
 ```
+
+Passing `--fresh` (or `-f`) to the ingest command clears FAISS, Lucene, and SQLite artifacts before rebuilding.
 
 ## Architecture
 
@@ -186,6 +188,18 @@ Cross-Encoder Reranking (top-20 → top-7 by relevance)
 Answer Generation (local Ollama LLM)
 ```
 
+```mermaid
+flowchart LR
+    Q[User Question] --> QE[Query Expander\n(LLM variants)]
+    QE --> EMB[Embedding Service\nONNX Runtime]
+    EMB --> HR[Hybrid Retriever\nreciprocal rank fusion]
+    FAISS[FAISS Vector Index] --> HR
+    LUCENE[Lucene BM25 Index] --> HR
+    HR --> RR[Cross-Encoder Reranker]
+    RR --> GEN[Ollama Generator]
+    GEN --> A[Final Answer]
+```
+
 ### Ingestion Pipeline
 
 ```
@@ -200,6 +214,17 @@ Embedding Generation (ONNX Runtime - CPU/GPU)
 Dual Indexing (FAISS vector + Lucene BM25 keyword)
   ↓
 SQLite Metadata Storage
+```
+
+```mermaid
+flowchart LR
+    D[Document Input\nPDF · HTML · Images] --> P[Document Processor\nPdfPig · AngleSharp · Tesseract]
+    P --> C[Semantic Chunker\nsentence-aware windows]
+    C --> E[Embedding Service\nONNX Runtime]
+    E --> I[Index Service]
+    I --> F[FAISS Vector Index]
+    I --> L[Lucene BM25 Index]
+    I --> S[SQLite Chunk Metadata]
 ```
 
 **Performance Benefits:**
