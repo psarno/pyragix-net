@@ -8,7 +8,8 @@ internal class Program
 {
     private static async Task Main(string[] args)
     {
-        Console.WriteLine("PyRagix.Net - Local RAG Engine\n");
+        var version = typeof(Program).Assembly.GetName().Version?.ToString() ?? "unknown";
+        Console.WriteLine($"PyRagix.Net v{version} - Local RAG Engine\n");
 
         // Load configuration and create engine so both commands share the same instance.
         var engine = RagEngine.FromSettings("../pyragix-net/settings.toml");
