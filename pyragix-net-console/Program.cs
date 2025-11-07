@@ -17,7 +17,7 @@ internal class Program
         if (args.Length == 0)
         {
             Console.WriteLine("Usage:");
-            Console.WriteLine("  pyragix-net-console ingest <folder_path>");
+            Console.WriteLine("  pyragix-net-console ingest <folder_path> [--fresh]");
             Console.WriteLine("  pyragix-net-console query <question>");
             return;
         }
@@ -34,7 +34,10 @@ internal class Program
                         Console.WriteLine("Error: Please provide a folder path to ingest");
                         return;
                     }
-                    await IngestAsync(engine, args[1]);
+
+                    var freshRequested = args.Skip(2).Any(a => string.Equals(a, "--fresh", StringComparison.OrdinalIgnoreCase) ||
+                                                               string.Equals(a, "-f", StringComparison.OrdinalIgnoreCase));
+                    await IngestAsync(engine, args[1], freshRequested);
                     break;
 
                 case "query":
@@ -62,9 +65,13 @@ internal class Program
     /// <summary>
     /// Runs the ingestion pipeline against the specified folder.
     /// </summary>
-    private static async Task IngestAsync(RagEngine engine, string folderPath)
+    private static async Task IngestAsync(RagEngine engine, string folderPath, bool fresh)
     {
         Console.WriteLine($"Ingesting documents from: {folderPath}");
+        if (fresh)
+        {
+            Console.WriteLine("Fresh ingestion requested - existing indexes and metadata will be deleted.");
+        }
         Console.WriteLine();
 
         if (!Directory.Exists(folderPath))
@@ -77,7 +84,7 @@ internal class Program
 
         try
         {
-            var finalUpdate = await consoleProgress.RunAsync(engine.IngestDocumentsAsync(folderPath, progress: consoleProgress));
+            var finalUpdate = await consoleProgress.RunAsync(engine.IngestDocumentsAsync(folderPath, fresh, consoleProgress));
             Console.WriteLine(finalUpdate.Message);
         }
         catch
