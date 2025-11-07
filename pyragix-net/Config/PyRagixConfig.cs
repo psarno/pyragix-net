@@ -13,8 +13,8 @@ namespace PyRagix.Net.Config;
 public class PyRagixConfig
 {
     // Paths
-    public string EmbeddingModelPath { get; set; } = "./Models/embeddings/model.onnx";
-    public string RerankerModelPath { get; set; } = "./Models/reranker/model.onnx";
+    public string EmbeddingModelPath { get; set; } = "./pyragix-net/Models/embeddings/model.onnx";
+    public string RerankerModelPath { get; set; } = "./pyragix-net/Models/reranker/model.onnx";
     public string DatabasePath { get; set; } = "pyragix.db";
     public string FaissIndexPath { get; set; } = "faiss_index.bin";
     public string BM25IndexPath { get; set; } = "bm25_index.pkl";
@@ -111,10 +111,12 @@ public class PyRagixConfig
         errors = new List<string>();
 
         ValidateFileExists(EmbeddingModelPath, "Embedding model", errors);
+        ValidateTokenizerAssets(EmbeddingModelPath, "Embedding tokenizer", errors);
 
         if (EnableReranking && mode == ResourceValidationMode.Retrieval)
         {
             ValidateFileExists(RerankerModelPath, "Reranker model", errors);
+            ValidateTokenizerAssets(RerankerModelPath, "Reranker tokenizer", errors);
         }
 
         if (mode == ResourceValidationMode.Retrieval)
@@ -153,6 +155,35 @@ public class PyRagixConfig
         if (!File.Exists(resolvedPath))
         {
             errors.Add($"{description} not found at '{resolvedPath}'.");
+        }
+    }
+
+    private void ValidateTokenizerAssets(string? modelPath, string description, List<string> errors)
+    {
+        if (string.IsNullOrWhiteSpace(modelPath))
+        {
+            return;
+        }
+
+        var resolvedModelPath = ResolvePath(modelPath);
+        var directory = Path.GetDirectoryName(resolvedModelPath);
+        if (string.IsNullOrWhiteSpace(directory))
+        {
+            errors.Add($"{description} directory could not be determined from '{resolvedModelPath}'.");
+            return;
+        }
+
+        ValidateTokenizerFile(directory, "tokenizer.json", description, errors);
+        ValidateTokenizerFile(directory, "tokenizer_config.json", description, errors);
+        ValidateTokenizerFile(directory, "vocab.txt", description, errors);
+    }
+
+    private static void ValidateTokenizerFile(string directory, string fileName, string description, List<string> errors)
+    {
+        var path = Path.Combine(directory, fileName);
+        if (!File.Exists(path))
+        {
+            errors.Add($"{description} asset missing: '{path}'.");
         }
     }
 

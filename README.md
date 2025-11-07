@@ -74,13 +74,13 @@ pip install optimum[exporters-onnx]
 optimum-cli export onnx \
   --model sentence-transformers/all-MiniLM-L6-v2 \
   --task feature-extraction \
-  pyragix-net-console/Models/embeddings
+  pyragix-net/Models/embeddings
 
 # Export reranker model (cross-encoder)
 optimum-cli export onnx \
   --model cross-encoder/ms-marco-MiniLM-L-6-v2 \
   --task text-classification \
-  pyragix-net-console/Models/reranker
+  pyragix-net/Models/reranker
 ```
 
 See [`docs/ONNX_SETUP.md`](docs/ONNX_SETUP.md) for detailed instructions.
@@ -140,8 +140,8 @@ var config = new PyRagixConfig
 {
     OllamaEndpoint = "http://localhost:11434",
     OllamaModel = "qwen2.5:7b",
-    EmbeddingModelPath = "./Models/embeddings/model.onnx",
-    RerankerModelPath = "./Models/reranker/model.onnx",
+    EmbeddingModelPath = "./pyragix-net/Models/embeddings/model.onnx",
+    RerankerModelPath = "./pyragix-net/Models/reranker/model.onnx",
     EnableQueryExpansion = true,
     EnableHybridSearch = true,
     EnableReranking = true
@@ -267,8 +267,8 @@ PyRagix.Net uses `settings.toml` for configuration. Copy `settings.example.toml`
 
 ```toml
 # Core Paths
-EmbeddingModelPath = "./Models/embeddings/model.onnx"
-RerankerModelPath = "./Models/reranker/model.onnx"
+EmbeddingModelPath = "./pyragix-net/Models/embeddings/model.onnx"
+RerankerModelPath = "./pyragix-net/Models/reranker/model.onnx"
 DatabasePath = "pyragix.db"
 FaissIndexPath = "faiss_index.bin"
 LuceneIndexPath = "lucene_index"

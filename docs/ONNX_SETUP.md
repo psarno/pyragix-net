@@ -16,20 +16,20 @@ pip install onnxruntime  # or onnxruntime-gpu for CUDA
 optimum-cli export onnx \
   --model sentence-transformers/all-MiniLM-L6-v2 \
   --task feature-extraction \
-  pyragix-net-console/Models/embeddings
+  pyragix-net/Models/embeddings
 
 # Reranker model (cross-encoder)
 optimum-cli export onnx \
   --model cross-encoder/ms-marco-MiniLM-L-6-v2 \
   --task text-classification \
-  pyragix-net-console/Models/reranker
+  pyragix-net/Models/reranker
 ```
 
 ## Verify
 
 Check for `model.onnx` in each folder:
-- `pyragix-net-console/Models/embeddings/model.onnx`
-- `pyragix-net-console/Models/reranker/model.onnx`
+- `pyragix-net/Models/embeddings/model.onnx`
+- `pyragix-net/Models/reranker/model.onnx`
 
 ## Tesseract OCR (Optional)
 

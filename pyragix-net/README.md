@@ -54,8 +54,8 @@ var config = new PyRagixConfig
 {
     OllamaEndpoint = "http://localhost:11434",
     OllamaModel = "qwen2.5:7b",
-    EmbeddingModelPath = "./Models/embeddings/model.onnx",
-    RerankerModelPath = "./Models/reranker/model.onnx"
+    EmbeddingModelPath = "./pyragix-net/Models/embeddings/model.onnx",
+    RerankerModelPath = "./pyragix-net/Models/reranker/model.onnx"
 };
 var engine = new RagEngine(config);
 
@@ -78,15 +78,15 @@ PyRagix.Net requires two ONNX models. Export from Python using Hugging Face `opt
 pip install optimum[exporters]
 
 # Export embedding model (384-dim vectors)
-optimum-cli export onnx --model sentence-transformers/all-MiniLM-L6-v2 ./Models/embeddings
+optimum-cli export onnx --model sentence-transformers/all-MiniLM-L6-v2 pyragix-net/Models/embeddings
 
 # Export reranker model
-optimum-cli export onnx --model cross-encoder/ms-marco-MiniLM-L-6-v2 ./Models/reranker
+optimum-cli export onnx --model cross-encoder/ms-marco-MiniLM-L-6-v2 pyragix-net/Models/reranker
 ```
 
-**Expected output:**
+**Expected output (relative to repo root):**
 ```
-Models/
+pyragix-net/Models/
 ├── embeddings/
 │   ├── model.onnx
 │   ├── tokenizer.json
@@ -123,8 +123,8 @@ Copy `settings.example.toml` to `settings.toml` and customize:
 
 ```toml
 # Paths
-EmbeddingModelPath = "./Models/embeddings/model.onnx"
-RerankerModelPath = "./Models/reranker/model.onnx"
+EmbeddingModelPath = "./pyragix-net/Models/embeddings/model.onnx"
+RerankerModelPath = "./pyragix-net/Models/reranker/model.onnx"
 DatabasePath = "pyragix.db"
 
 # Ollama
@@ -191,8 +191,11 @@ PyRagix.Net/
 │   ├── Reranker.cs               # Cross-encoder ONNX
 │   ├── OllamaGenerator.cs        # LLM client
 │   └── RetrievalService.cs       # Pipeline orchestration
-├── Models/                        # .onnx files (git-ignored)
+├── Models/                       # ONNX assets (embeddings + reranker, git-ignored)
 └── pyragix-net.csproj
+
+pyragix-net-console/
+└── Program.cs                    # CLI wrapper for engine ingestion/query
 ```
 
 ## Dependencies

@@ -24,7 +24,7 @@ public class PyRagixConfigTests
         // When the file is missing we expect the in-memory defaults to be used so the engine can still boot.
         var config = PyRagixConfig.LoadFromToml(fileName);
 
-        Assert.Equal("./Models/embeddings/model.onnx", config.EmbeddingModelPath);
+        Assert.Equal("./pyragix-net/Models/embeddings/model.onnx", config.EmbeddingModelPath);
         Assert.Equal(384, config.EmbeddingDimension);
         Assert.True(config.EnableSemanticChunking);
     }
@@ -137,6 +137,8 @@ public class PyRagixConfigTests
         File.WriteAllText(rerankerPath, "test");
         File.WriteAllText(faissPath, "test");
         File.WriteAllText(dbPath, "test");
+        WriteTokenizerArtifacts(embeddingPath);
+        WriteTokenizerArtifacts(rerankerPath);
 
         var config = new PyRagixConfig
         {
@@ -150,5 +152,13 @@ public class PyRagixConfigTests
 
         Assert.True(result);
         Assert.Empty(errors);
+    }
+
+    private static void WriteTokenizerArtifacts(string modelPath)
+    {
+        var directory = Path.GetDirectoryName(modelPath)!;
+        File.WriteAllText(Path.Combine(directory, "tokenizer.json"), "{}");
+        File.WriteAllText(Path.Combine(directory, "tokenizer_config.json"), "{}");
+        File.WriteAllText(Path.Combine(directory, "vocab.txt"), "[PAD]");
     }
 }
