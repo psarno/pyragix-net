@@ -236,7 +236,7 @@ pyragix-net-console/
 **Optimization Tips:**
 - Set `EmbeddingBatchSize = 32` for faster ingestion (requires more RAM)
 - Disable `EnableQueryExpansion` for 2x faster queries (lower recall)
-- Use GPU via `GpuEnabled = true` for 5-10x faster embedding/reranking
+- Set `ExecutionProviderPreference = "Gpu"` (or `"Auto"`) for 5-10x faster embedding/reranking when CUDA is available
 
 ## Troubleshooting Native Vector Indexes
 

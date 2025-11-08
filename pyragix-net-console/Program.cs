@@ -1,4 +1,6 @@
 using PyRagix.Net.Core;
+using PyRagix.Net.Core.Exceptions;
+using PyRagix.Net.Core.Hardware;
 using PyRagix.Net.Ingestion;
 
 /// <summary>
@@ -13,6 +15,7 @@ internal class Program
 
         // Load configuration and create engine so both commands share the same instance.
         var engine = RagEngine.FromSettings("../pyragix-net/settings.toml");
+        DisplayExecutionProviderNotes(engine.ExecutionProviderStatus);
 
         if (args.Length == 0)
         {
@@ -54,6 +57,20 @@ internal class Program
                     Console.WriteLine($"Unknown command: {command}");
                     break;
             }
+        }
+        catch (GpuExecutionProviderUnavailableException ex)
+        {
+            Console.WriteLine($"GPU unavailable: {ex.Message}");
+            Console.WriteLine("Hint: Install CUDA/cuDNN drivers or switch ExecutionProviderPreference to \"Cpu\" or \"Auto\".");
+        }
+        catch (GpuExecutionProviderInitializationException ex)
+        {
+            Console.WriteLine($"GPU initialization error: {ex.Message}");
+            Console.WriteLine("Hint: Verify NVIDIA drivers and that the Microsoft.ML.OnnxRuntime.Gpu package matches your platform.");
+        }
+        catch (PyRagixException ex)
+        {
+            Console.WriteLine($"Configuration error: {ex.Message}");
         }
         catch (Exception ex)
         {
@@ -111,5 +128,18 @@ internal class Program
 
         Console.WriteLine("=== ANSWER ===");
         Console.WriteLine(answer);
+    }
+
+    private static void DisplayExecutionProviderNotes(ExecutionProviderStatus status)
+    {
+        if (status.ShouldWarnCpuPreference)
+        {
+            Console.WriteLine("NOTE: CUDA-capable hardware detected but the configuration forces CPU execution. Set ExecutionProviderPreference = \"Auto\" or \"Gpu\" to enable acceleration.\n");
+        }
+
+        if (status.FallbackToCpu && !string.IsNullOrWhiteSpace(status.Note))
+        {
+            Console.WriteLine($"NOTE: {status.Note}\n");
+        }
     }
 }

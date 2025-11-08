@@ -301,7 +301,7 @@ HybridAlpha = 0.7               # 70% semantic, 30% keyword
 QueryExpansionCount = 3         # Number of query variants
 
 # GPU Acceleration (requires CUDA)
-GpuEnabled = false              # Set true for GPU inference
+ExecutionProviderPreference = "Auto"  # Options: "Auto", "Cpu", "Gpu"
 GpuDeviceId = 0
 ```
 
@@ -321,7 +321,7 @@ OcrBaseDpi = 200
 
 **For CUDA-capable GPUs:**
 ```toml
-GpuEnabled = true
+ExecutionProviderPreference = "Gpu"
 GpuDeviceId = 0
 ```
 
@@ -395,7 +395,7 @@ pyragix-net/
 **Optimization strategies:**
 - Increase `EmbeddingBatchSize` to 32+ for faster ingestion (requires more RAM)
 - Disable `EnableQueryExpansion` for 2x faster queries (slight recall reduction)
-- Enable `GpuEnabled` for 5-10x faster embedding and reranking inference
+- Set `ExecutionProviderPreference = "Gpu"` (or `"Auto"` to pick automatically) for 5-10x faster embedding and reranking inference when CUDA is available
 
 **When to use PyRagix.Net:**
 - Teaching or learning RAG concepts in .NET-first teams.

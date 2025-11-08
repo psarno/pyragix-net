@@ -5,6 +5,7 @@ using PyRagix.Net.Config;
 using PyRagix.Net.Core.Resilience;
 using PyRagix.Net.Core.Tokenization;
 using System.Linq;
+using PyRagix.Net.Core.Hardware;
 
 namespace PyRagix.Net.Ingestion;
 
@@ -26,19 +27,7 @@ public class EmbeddingService : IDisposable
         _config = config;
         _inferenceRetryPolicy = RetryPolicies.CreateAsyncPolicy("ONNX embedding inference");
 
-        // Configure session options for GPU if enabled
-        var sessionOptions = new SessionOptions();
-        if (config.GpuEnabled)
-        {
-            try
-            {
-                sessionOptions.AppendExecutionProvider_CUDA(config.GpuDeviceId);
-            }
-            catch
-            {
-                Console.WriteLine("CUDA not available, falling back to CPU");
-            }
-        }
+        var sessionOptions = OnnxExecutionProviderResolver.CreateSessionOptions(config, nameof(EmbeddingService));
 
         if (!File.Exists(config.EmbeddingModelPath))
         {

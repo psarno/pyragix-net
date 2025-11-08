@@ -3,6 +3,7 @@ using Microsoft.ML.OnnxRuntime.Tensors;
 using PyRagix.Net.Config;
 using PyRagix.Net.Core.Models;
 using PyRagix.Net.Core.Tokenization;
+using PyRagix.Net.Core.Hardware;
 
 namespace PyRagix.Net.Retrieval;
 
@@ -34,18 +35,7 @@ public class Reranker : IDisposable
             return;
         }
 
-        var sessionOptions = new SessionOptions();
-        if (config.GpuEnabled)
-        {
-            try
-            {
-                sessionOptions.AppendExecutionProvider_CUDA(config.GpuDeviceId);
-            }
-            catch
-            {
-                // Fall back to CPU
-            }
-        }
+        var sessionOptions = OnnxExecutionProviderResolver.CreateSessionOptions(config, nameof(Reranker));
 
         _session = new InferenceSession(config.RerankerModelPath, sessionOptions);
 

@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Configuration;
+using PyRagix.Net.Core.Hardware;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -53,8 +54,25 @@ public class PyRagixConfig
     public int DefaultTopK { get; set; } = 7;
 
     // GPU
-    public bool GpuEnabled { get; set; } = false;
+    /// <summary>
+    /// Determines whether ONNX Runtime should auto-detect, force CPU, or force GPU execution providers.
+    /// </summary>
+    public ExecutionProviderPreference ExecutionProviderPreference { get; set; } = ExecutionProviderPreference.Auto;
     public int GpuDeviceId { get; set; } = 0;
+
+    /// <summary>
+    /// Backwards-compatible toggle for legacy TOML files. Prefer <see cref="ExecutionProviderPreference"/>.
+    /// </summary>
+    public bool GpuEnabled
+    {
+        get => ExecutionProviderPreference == ExecutionProviderPreference.Gpu;
+        set => ExecutionProviderPreference = value ? ExecutionProviderPreference.Gpu : ExecutionProviderPreference.Cpu;
+    }
+
+    /// <summary>
+    /// Captures the most recent execution provider probe so hosts can surface diagnostics.
+    /// </summary>
+    public ExecutionProviderStatus? ExecutionProviderStatus { get; internal set; }
 
     // OCR
     public int OcrBaseDpi { get; set; } = 150;

@@ -3,6 +3,7 @@ using PyRagix.Net.Config;
 using PyRagix.Net.Ingestion;
 using PyRagix.Net.Retrieval;
 using System.Threading;
+using PyRagix.Net.Core.Hardware;
 
 namespace PyRagix.Net.Core;
 
@@ -13,6 +14,7 @@ namespace PyRagix.Net.Core;
 public class RagEngine : IDisposable
 {
     private readonly PyRagixConfig _config;
+    private readonly ExecutionProviderStatus _executionProviderStatus;
     private IngestionService? _ingestionService;
     private RetrievalService? _retrievalService;
 
@@ -23,6 +25,7 @@ public class RagEngine : IDisposable
     {
         _config = config;
         _config.Validate();
+        _executionProviderStatus = OnnxExecutionProviderResolver.EnsureStatus(_config);
     }
 
     /// <summary>
@@ -33,6 +36,11 @@ public class RagEngine : IDisposable
         var config = PyRagixConfig.LoadFromToml(settingsPath);
         return new RagEngine(config);
     }
+
+    /// <summary>
+    /// Exposes the resolved ONNX execution provider so hosts can surface GPU diagnostics.
+    /// </summary>
+    public ExecutionProviderStatus ExecutionProviderStatus => _executionProviderStatus;
 
     /// <summary>
     /// Executes the full ingestion pipeline against every supported document inside the target folder.
