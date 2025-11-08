@@ -2,7 +2,7 @@
 
 # PyRagix.Net
 
-A **local-first** Retrieval-Augmented Generation (RAG) engine for .NET 9.0, porting the core capabilities of [PyRagix](https://github.com/psarno/pyragix) to C#. PyRagix.Net implements modern RAG techniques including query expansion, hybrid search (semantic + keyword), cross-encoder reranking, and local LLM generation via Ollama—all while maintaining complete data privacy through local-only operation.
+PyRagix.Net is a local-first, educational Retrieval-Augmented Generation (RAG) project for .NET 9.0. It mirrors the Python reference implementation while showcasing how to compose modern retrieval techniques in C#. Query expansion, hybrid search (semantic + keyword), cross-encoder reranking, and Ollama-backed generation all run locally so you can study the full pipeline without depending on hosted services.
 
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
 ![.NET](https://img.shields.io/badge/.NET-9.0-blue.svg)
@@ -10,15 +10,18 @@ A **local-first** Retrieval-Augmented Generation (RAG) engine for .NET 9.0, port
 ![Local-first](https://img.shields.io/badge/local--first-RAG-brightgreen)
 ![Ollama](https://img.shields.io/badge/Ollama-ready-blue)
 
+> [!IMPORTANT]
+> Treat this repository as a learning lab and reference implementation. The focus is readability, strict typing, and transparent configuration—not a turnkey “enterprise” deployment.
+
 ## Overview
 
-PyRagix.Net brings enterprise-grade RAG capabilities to the .NET ecosystem. Built as a class library, it provides a clean API for document ingestion and querying while running entirely on your infrastructure with zero external API dependencies for document processing and search.
+PyRagix.Net ships as a class library plus console sample so you can explore ingestion and querying patterns from a C# environment. Everything runs on your infrastructure with zero external API dependencies for document processing and search.
 
-**Key Benefits:**
-- **Privacy-First**: All document processing, indexing, and search happen locally
-- **Production-Ready**: Modern RAG techniques delivering state-of-the-art retrieval quality
-- **Developer-Friendly**: Simple C# API with comprehensive configuration options
-- **Cross-Platform**: Runs on Windows, Linux, and macOS via .NET 9.0
+**Key Highlights:**
+- **Privacy-First**: All document processing, indexing, and search happen locally.
+- **Educational Focus**: Modules are organized so each pipeline stage is easy to inspect.
+- **Developer-Friendly**: Simple C# API with comprehensive configuration options.
+- **Cross-Platform**: Runs on Windows, Linux, and macOS via .NET 9.0.
 
 This repository contains:
 - **`pyragix-net/`** - The RAG engine class library (see the engine [`README`](pyragix-net/README.md))
@@ -234,6 +237,13 @@ flowchart LR
 
 ## Key Features
 
+### Learning-Focused Design
+
+- **Traceable Pipelines**: Ingestion, retrieval, and orchestration live in separate namespaces so you can follow each step.
+- **Strict Typing as Documentation**: Nullable reference types and explicit models make contracts obvious.
+- **Configurable Experiments**: Toggle query expansion, reranking, and hybrid search independently to observe impact.
+- **Local-Only Stack**: Reproduce workshops or internal trainings without cloud dependencies or API quotas.
+
 ### Modern RAG Techniques
 
 - **Query Expansion**: Generates multiple query variants to capture diverse phrasing and improve recall on ambiguous questions
@@ -388,25 +398,24 @@ pyragix-net/
 - Enable `GpuEnabled` for 5-10x faster embedding and reranking inference
 
 **When to use PyRagix.Net:**
-- Building .NET applications (ASP.NET, Blazor, WPF, etc.)
-- Enterprise .NET shops requiring RAG capabilities
-- Strong typing and compile-time safety requirements
-- Integration with existing C# codebases
+- Teaching or learning RAG concepts in .NET-first teams.
+- Prototyping local knowledge tools that must stay on Windows/WSL infrastructure.
+- Demonstrating how FAISS/Lucene, ONNX, and Ollama cooperate inside a C# codebase.
+- Exploring strongly typed, DI-friendly implementations before scaling further.
 
 **When to use PyRagix (Python):**
-- Standalone RAG application with web UI
-- Python ecosystem integration
-- Research and rapid prototyping
-- PaddleOCR over Tesseract preference
+- Need the reference web UI or richer ingestion tooling.
+- Prefer PaddleOCR or Python’s ML ecosystem for experiments.
+- Rapid prototyping with Jupyter/CLI workflows.
+- Want parity with the article/tutorial content that inspired this project.
 
 ## Use Cases
 
-- **Enterprise Knowledge Management**: Index internal documentation, wikis, and knowledge bases with complete data privacy
-- **Legal Document Analysis**: Process contracts, case files, and legal research with confidentiality
-- **Healthcare Applications**: Search clinical notes, research papers, and patient data (HIPAA-compliant when properly deployed)
-- **Developer Tools**: Build internal knowledge bases from code documentation, tickets, and wikis
-- **Desktop Applications**: Integrate RAG into WPF, WinForms, or Avalonia applications
-- **ASP.NET Services**: Add intelligent document search to web applications
+- **Workshops & Lunch-and-Learns**: Walk developers through a full RAG stack using only local dependencies.
+- **Internal Prototypes**: Spin up proof-of-concept search tools over private corpora before investing in heavier infrastructure.
+- **Regulated Labs**: Experiment with retrieval techniques on machines that cannot reach external APIs.
+- **Desktop & Embedded Demos**: Embed a transparent RAG pipeline inside WPF/WinForms/Avalonia showcase apps.
+- **Dev Enablement**: Use the console app + library to compare toggles (expansion, hybrid search, reranking) in real time.
 
 **Development setup:**
 ```bash

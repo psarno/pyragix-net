@@ -1,21 +1,27 @@
 # PyRagix.Net
 
-A **local-first** Retrieval-Augmented Generation (RAG) engine for .NET 9.0, porting the core capabilities of [PyRagix](https://github.com/psarno/PyRagix) to C#. Implements modern RAG techniques including query expansion, hybrid search (semantic + keyword), cross-encoder reranking, and local LLM generation via Ollama.
+PyRagix.Net is a local-first, educational Retrieval-Augmented Generation (RAG) reference for .NET 9.0. It mirrors the Python project while showing how to wire modern retrieval techniques—query expansion, hybrid semantic+keyword search, cross-encoder reranking, and Ollama-backed generation—inside a C# codebase that runs entirely on your machine.
 
 ![.NET](https://img.shields.io/badge/.NET-9.0-blue.svg)
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
 ![Build](https://img.shields.io/badge/build-passing-brightgreen.svg)
 
+> [!IMPORTANT]
+> This repository prioritizes readability, strict typing, and transparent configuration for learning purposes. It is not positioned as a turnkey enterprise deployment.
+
 ## Features
 
-- **100% Local Processing**: All document processing, indexing, and search run offline (requires local Ollama for LLM)
-- **Multi-Format Ingestion**: PDF (PdfPig), HTML (AngleSharp), Images (Tesseract OCR)
-- **Semantic Chunking**: Sentence-boundary-aware text splitting for context coherence
-- **ONNX Embeddings**: Local inference via ONNX Runtime (CPU/GPU support)
-- **Hybrid Search**: FAISS vector search (70%) + Lucene BM25 keyword search (30%) with Reciprocal Rank Fusion
-- **Query Expansion**: Generates 3-5 query variants for improved recall
-- **Cross-Encoder Reranking**: Precision re-scoring of top candidates
-- **Local LLM Generation**: Answer synthesis via Ollama (any model: llama, qwen, mistral, etc.)
+- **Learning-Focused Layout**: Clear namespaces for ingestion, retrieval, and orchestration so you can step through each stage.
+- **Strict Typing as Docs**: Nullable reference types and explicit configuration models capture contracts in code.
+- **Experiment-Friendly Toggles**: Flip query expansion, hybrid search, and reranking independently to observe the impact.
+- **100% Local Processing**: All document processing, indexing, and search run offline (requires local Ollama for LLM).
+- **Multi-Format Ingestion**: PDF (PdfPig), HTML (AngleSharp), Images (Tesseract OCR).
+- **Semantic Chunking**: Sentence-boundary-aware text splitting for context coherence.
+- **ONNX Embeddings**: Local inference via ONNX Runtime (CPU/GPU support).
+- **Hybrid Search**: FAISS vector search (70%) + Lucene BM25 keyword search (30%) with Reciprocal Rank Fusion.
+- **Query Expansion**: Generates 3-5 query variants for improved recall.
+- **Cross-Encoder Reranking**: Precision re-scoring of top candidates.
+- **Local LLM Generation**: Answer synthesis via Ollama (any model: llama, qwen, mistral, etc.).
 
 ## Quick Start
 

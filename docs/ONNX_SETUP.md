@@ -1,6 +1,6 @@
 # ONNX Model Export Guide
 
-PyRagix.Net requires ONNX models for embeddings and reranking. Export once from Python.
+PyRagix.Net keeps everything local, so embeddings and reranking models must be exported to ONNX once on your workstation. After this one-time setup, no external services are required for inference.
 
 ## Prerequisites
 
