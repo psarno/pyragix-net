@@ -193,9 +193,9 @@ Answer Generation (local Ollama LLM)
 
 ```mermaid
 flowchart LR
-    Q[User Question] --> QE[Query Expander\n(LLM variants)]
-    QE --> EMB[Embedding Service\nONNX Runtime]
-    EMB --> HR[Hybrid Retriever\nreciprocal rank fusion]
+    Q[User Question] --> QE[Query Expander<br/>(LLM variants)]
+    QE --> EMB[Embedding Service<br/>ONNX Runtime]
+    EMB --> HR[Hybrid Retriever<br/>reciprocal rank fusion]
     FAISS[FAISS Vector Index] --> HR
     LUCENE[Lucene BM25 Index] --> HR
     HR --> RR[Cross-Encoder Reranker]
@@ -221,9 +221,9 @@ SQLite Metadata Storage
 
 ```mermaid
 flowchart LR
-    D[Document Input\nPDF · HTML · Images] --> P[Document Processor\nPdfPig · AngleSharp · Tesseract]
-    P --> C[Semantic Chunker\nsentence-aware windows]
-    C --> E[Embedding Service\nONNX Runtime]
+    D[Document Input<br/>PDF · HTML · Images] --> P[Document Processor<br/>PdfPig · AngleSharp · Tesseract]
+    P --> C[Semantic Chunker<br/>sentence-aware windows]
+    C --> E[Embedding Service<br/>ONNX Runtime]
     E --> I[Index Service]
     I --> F[FAISS Vector Index]
     I --> L[Lucene BM25 Index]
