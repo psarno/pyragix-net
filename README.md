@@ -10,9 +10,6 @@ PyRagix.Net is a local-first, educational Retrieval-Augmented Generation (RAG) p
 ![Local-first](https://img.shields.io/badge/local--first-RAG-brightgreen)
 ![Ollama](https://img.shields.io/badge/Ollama-ready-blue)
 
-> [!IMPORTANT]
-> Treat this repository as a learning lab and reference implementation. The focus is readability, strict typing, and transparent configuration—not a turnkey “enterprise” deployment.
-
 ## Overview
 
 PyRagix.Net ships as a class library plus console sample so you can explore ingestion and querying patterns from a C# environment. Everything runs on your infrastructure with zero external API dependencies for document processing and search.
