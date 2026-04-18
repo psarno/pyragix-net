@@ -113,7 +113,6 @@ ollama serve
 # Run console app
 cd pyragix-net-console
 
-# Ingest documents (append --fresh to rebuild indexes from scratch)
 dotnet run -- ingest ./docs
 dotnet run -- query "What is retrieval-augmented generation?"
 ```
@@ -135,7 +134,7 @@ rm -rf lucene_index
 ```
 
 > [!TIP]
-> You can also run `dotnet run -- ingest ./docs --fresh` to let the CLI handle cleanup before rebuilding.
+> TODO: Port the `--fresh` CLI flag from the Python version. The engine API already supports `fresh: true` (see library usage below), but the console app doesn't expose it yet. For now, delete artifacts manually.
 
 ## Usage
 
@@ -153,8 +152,8 @@ var config = new PyRagixConfig
 {
     OllamaEndpoint = "http://localhost:11434",
     OllamaModel = "qwen2.5:7b",
-    EmbeddingModelPath = "./pyragix-net/Models/embeddings/model.onnx",
-    RerankerModelPath = "./pyragix-net/Models/reranker/model.onnx",
+    EmbeddingModelPath = "./Models/embeddings/model.onnx",
+    RerankerModelPath = "./Models/reranker/model.onnx",
     EnableQueryExpansion = true,
     EnableHybridSearch = true,
     EnableReranking = true
@@ -172,13 +171,9 @@ Console.WriteLine(answer);
 ### Console Application
 
 ```bash
-# Ingest a folder of documents (append --fresh to purge existing indexes)
 dotnet run -- ingest <folder_path>
 dotnet run -- query "<your question>"
 ```
-
-> [!NOTE]
-> Passing `--fresh` (or `-f`) to the ingest command clears FAISS, Lucene, and SQLite artifacts before rebuilding.
 
 ## Configuration
 
@@ -186,8 +181,8 @@ PyRagix.Net uses `settings.toml` for configuration. Copy `settings.example.toml`
 
 ```toml
 # Core Paths
-EmbeddingModelPath = "./pyragix-net/Models/embeddings/model.onnx"
-RerankerModelPath = "./pyragix-net/Models/reranker/model.onnx"
+EmbeddingModelPath = "./Models/embeddings/model.onnx"
+RerankerModelPath = "./Models/reranker/model.onnx"
 DatabasePath = "pyragix.db"
 FaissIndexPath = "faiss_index.bin"
 LuceneIndexPath = "lucene_index"
@@ -210,7 +205,7 @@ HybridAlpha = 0.7               # 70% semantic, 30% keyword
 QueryExpansionCount = 3         # Number of query variants
 
 # GPU Acceleration (requires CUDA)
-ExecutionProviderPreference = "Auto"  # Options: "Auto", "Cpu", "Gpu"
+GpuEnabled = false              # Set true for GPU inference
 GpuDeviceId = 0
 ```
 
@@ -234,10 +229,10 @@ OcrBaseDpi = 200
 ```
 
 > [!NOTE]
-> GPU acceleration requires CUDA. Set `ExecutionProviderPreference = "Auto"` to let the runtime pick the best available provider.
+> GPU acceleration requires CUDA. TODO: Port `ExecutionProviderPreference` from the Python version for auto-detection. Currently uses a simple `GpuEnabled` bool.
 
 ```toml
-ExecutionProviderPreference = "Gpu"
+GpuEnabled = true
 GpuDeviceId = 0
 ```
 
