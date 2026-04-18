@@ -32,20 +32,7 @@ public class Reranker : IDisposable
             return;
         }
 
-        var sessionOptions = new SessionOptions();
-        if (config.GpuEnabled)
-        {
-            try
-            {
-                sessionOptions.AppendExecutionProvider_CUDA(config.GpuDeviceId);
-            }
-            catch
-            {
-                // Fall back to CPU
-            }
-        }
-
-        _session = new InferenceSession(config.RerankerModelPath, sessionOptions);
+        _session = new InferenceSession(config.RerankerModelPath, BuildSessionOptions(config));
     }
 
     /// <summary>
@@ -140,6 +127,39 @@ public class Reranker : IDisposable
         return tokens.Take(512).ToArray();
     }
 
+    /// <summary>
+    /// Builds <see cref="SessionOptions"/> according to the configured execution provider preference.
+    /// Mirrors the same logic in <see cref="EmbeddingService"/>.
+    /// </summary>
+    private static SessionOptions BuildSessionOptions(PyRagixConfig config)
+    {
+        var options = new SessionOptions();
+        switch (config.ExecutionProviderPreference)
+        {
+            case OnnxExecutionProvider.Auto:
+                try
+                {
+                    options.AppendExecutionProvider_CUDA(config.GpuDeviceId);
+                    Console.WriteLine($"ONNX reranker: CUDA active (device {config.GpuDeviceId})");
+                }
+                catch
+                {
+                    Console.WriteLine("ONNX reranker: CUDA unavailable, using CPU");
+                }
+                break;
+
+            case OnnxExecutionProvider.Cuda:
+                options.AppendExecutionProvider_CUDA(config.GpuDeviceId);
+                break;
+
+            case OnnxExecutionProvider.Cpu:
+            default:
+                break;
+        }
+        return options;
+    }
+
+    /// <summary>Releases the underlying ONNX session.</summary>
     public void Dispose()
     {
         _session?.Dispose();

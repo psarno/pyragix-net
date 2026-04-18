@@ -1,7 +1,6 @@
 using Microsoft.ML.OnnxRuntime;
 using Microsoft.ML.OnnxRuntime.Tensors;
 using PyRagix.Net.Config;
-using System.Text;
 using System.Text.RegularExpressions;
 
 namespace PyRagix.Net.Ingestion;
@@ -22,26 +21,12 @@ public class EmbeddingService : IDisposable
     {
         _config = config;
 
-        // Configure session options for GPU if enabled
-        var sessionOptions = new SessionOptions();
-        if (config.GpuEnabled)
-        {
-            try
-            {
-                sessionOptions.AppendExecutionProvider_CUDA(config.GpuDeviceId);
-            }
-            catch
-            {
-                Console.WriteLine("CUDA not available, falling back to CPU");
-            }
-        }
-
         if (!File.Exists(config.EmbeddingModelPath))
         {
             throw new FileNotFoundException($"Embedding model not found: {config.EmbeddingModelPath}");
         }
 
-        _session = new InferenceSession(config.EmbeddingModelPath, sessionOptions);
+        _session = new InferenceSession(config.EmbeddingModelPath, BuildSessionOptions(config));
     }
 
     /// <summary>
@@ -176,6 +161,40 @@ public class EmbeddingService : IDisposable
         }
 
         return result;
+    }
+
+    /// <summary>
+    /// Builds <see cref="SessionOptions"/> according to the configured execution provider preference.
+    /// Auto mode tries CUDA and silently falls back to CPU, matching the Python faiss_manager detection pattern.
+    /// </summary>
+    private static SessionOptions BuildSessionOptions(PyRagixConfig config)
+    {
+        var options = new SessionOptions();
+        switch (config.ExecutionProviderPreference)
+        {
+            case OnnxExecutionProvider.Auto:
+                try
+                {
+                    options.AppendExecutionProvider_CUDA(config.GpuDeviceId);
+                    Console.WriteLine($"ONNX embeddings: CUDA active (device {config.GpuDeviceId})");
+                }
+                catch
+                {
+                    Console.WriteLine("ONNX embeddings: CUDA unavailable, using CPU");
+                }
+                break;
+
+            case OnnxExecutionProvider.Cuda:
+                // Let ONNX throw naturally if CUDA is absent — caller opted in to hard failure.
+                options.AppendExecutionProvider_CUDA(config.GpuDeviceId);
+                break;
+
+            case OnnxExecutionProvider.Cpu:
+            default:
+                // No explicit provider — ONNX Runtime defaults to CPU.
+                break;
+        }
+        return options;
     }
 
     /// <summary>

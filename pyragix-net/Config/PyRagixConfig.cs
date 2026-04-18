@@ -4,6 +4,20 @@ using Tomlyn.Extensions.Configuration;
 namespace PyRagix.Net.Config;
 
 /// <summary>
+/// Controls which ONNX Runtime execution provider is used for embedding and reranking inference.
+/// Mirrors the auto-detection logic from the Python version's <c>faiss_manager.py</c>.
+/// </summary>
+public enum OnnxExecutionProvider
+{
+    /// <summary>Try CUDA first; silently falls back to CPU when CUDA is unavailable.</summary>
+    Auto,
+    /// <summary>Require CUDA. Throws <see cref="Exception"/> at startup if CUDA is not available.</summary>
+    Cuda,
+    /// <summary>CPU only. Safe on any machine; the default.</summary>
+    Cpu
+}
+
+/// <summary>
 /// Centralised configuration backing the ingestion and retrieval pipelines.
 /// Values are typically sourced from <c>settings.toml</c> and mirrored from the Python project.
 /// </summary>
@@ -49,8 +63,8 @@ public class PyRagixConfig
     // Retrieval
     public int DefaultTopK { get; set; } = 7;
 
-    // GPU
-    public bool GpuEnabled { get; set; } = false;
+    // GPU / ONNX execution provider
+    public OnnxExecutionProvider ExecutionProviderPreference { get; set; } = OnnxExecutionProvider.Cpu;
     public int GpuDeviceId { get; set; } = 0;
 
     // OCR
