@@ -1,4 +1,4 @@
-<img width="500" height="auto" alt="image" src="https://github.com/user-attachments/assets/851dda34-8152-4436-80f9-7d792e676f5b" />
+<img width="500" height="auto" alt="image" src="https://github.com/user-attachments/assets/4c3fe1f7-b078-4fa9-99df-779c7f0867d1" />
 
 # PyRagix.Net
 
@@ -76,7 +76,12 @@ For test-writing guidance, see [`PyRagix.Net.Tests/README.md`](PyRagix.Net.Tests
 
 ### ONNX Models (One-Time Setup)
 
-PyRagix.Net requires two ONNX models for embeddings and reranking. Export from Python:
+PyRagix.Net requires two ONNX models for embeddings and reranking.
+
+> [!IMPORTANT]
+> These models must be exported before first run. Without them, embedding and reranking will fail.
+
+Export from Python:
 
 ```bash
 pip install optimum[exporters-onnx]
@@ -85,13 +90,13 @@ pip install optimum[exporters-onnx]
 optimum-cli export onnx \
   --model sentence-transformers/all-MiniLM-L6-v2 \
   --task feature-extraction \
-  pyragix-net-console/Models/embeddings
+  pyragix-net/Models/embeddings
 
 # Reranker model (cross-encoder)
 optimum-cli export onnx \
   --model cross-encoder/ms-marco-MiniLM-L-6-v2 \
   --task text-classification \
-  pyragix-net-console/Models/reranker
+  pyragix-net/Models/reranker
 ```
 
 See [`docs/ONNX_SETUP.md`](docs/ONNX_SETUP.md) for detailed instructions.
@@ -107,6 +112,8 @@ ollama serve
 
 # Run console app
 cd pyragix-net-console
+
+# Ingest documents (append --fresh to rebuild indexes from scratch)
 dotnet run -- ingest ./docs
 dotnet run -- query "What is retrieval-augmented generation?"
 ```
@@ -118,13 +125,17 @@ PyRagix.Net selects the vector index implementation automatically:
 - **Windows (native)** - uses [FaissNet](https://www.nuget.org/packages/FaissNet) with the FAISS C++ backend.
 - **Linux / macOS / WSL** - uses the built-in managed inner-product index (no native dependencies). Keeps the project runnable when FAISS binaries are unavailable.
 
-When switching operating systems, delete previously generated artifacts before re-ingesting:
+> [!WARNING]
+> When switching operating systems, delete previously generated artifacts before re-ingesting. The index format is not portable across backends.
 
 ```bash
 rm -f faiss_index.bin
 rm -f pyragix.db
 rm -rf lucene_index
 ```
+
+> [!TIP]
+> You can also run `dotnet run -- ingest ./docs --fresh` to let the CLI handle cleanup before rebuilding.
 
 ## Usage
 
@@ -142,15 +153,15 @@ var config = new PyRagixConfig
 {
     OllamaEndpoint = "http://localhost:11434",
     OllamaModel = "qwen2.5:7b",
-    EmbeddingModelPath = "./Models/embeddings/model.onnx",
-    RerankerModelPath = "./Models/reranker/model.onnx",
+    EmbeddingModelPath = "./pyragix-net/Models/embeddings/model.onnx",
+    RerankerModelPath = "./pyragix-net/Models/reranker/model.onnx",
     EnableQueryExpansion = true,
     EnableHybridSearch = true,
     EnableReranking = true
 };
 var engine = new RagEngine(config);
 
-// Ingest documents (PDF, HTML, images)
+// Ingest documents (PDF, HTML, images). Set fresh: true to recreate indexes from scratch.
 await engine.IngestDocumentsAsync("./my-documents", fresh: false);
 
 // Query with natural language
@@ -161,9 +172,13 @@ Console.WriteLine(answer);
 ### Console Application
 
 ```bash
+# Ingest a folder of documents (append --fresh to purge existing indexes)
 dotnet run -- ingest <folder_path>
 dotnet run -- query "<your question>"
 ```
+
+> [!NOTE]
+> Passing `--fresh` (or `-f`) to the ingest command clears FAISS, Lucene, and SQLite artifacts before rebuilding.
 
 ## Configuration
 
@@ -171,8 +186,8 @@ PyRagix.Net uses `settings.toml` for configuration. Copy `settings.example.toml`
 
 ```toml
 # Core Paths
-EmbeddingModelPath = "./Models/embeddings/model.onnx"
-RerankerModelPath = "./Models/reranker/model.onnx"
+EmbeddingModelPath = "./pyragix-net/Models/embeddings/model.onnx"
+RerankerModelPath = "./pyragix-net/Models/reranker/model.onnx"
 DatabasePath = "pyragix.db"
 FaissIndexPath = "faiss_index.bin"
 LuceneIndexPath = "lucene_index"
@@ -195,7 +210,7 @@ HybridAlpha = 0.7               # 70% semantic, 30% keyword
 QueryExpansionCount = 3         # Number of query variants
 
 # GPU Acceleration (requires CUDA)
-GpuEnabled = false              # Set true for GPU inference
+ExecutionProviderPreference = "Auto"  # Options: "Auto", "Cpu", "Gpu"
 GpuDeviceId = 0
 ```
 
@@ -218,9 +233,11 @@ EmbeddingBatchSize = 32
 OcrBaseDpi = 200
 ```
 
-GPU acceleration (requires CUDA):
+> [!NOTE]
+> GPU acceleration requires CUDA. Set `ExecutionProviderPreference = "Auto"` to let the runtime pick the best available provider.
+
 ```toml
-GpuEnabled = true
+ExecutionProviderPreference = "Gpu"
 GpuDeviceId = 0
 ```
 
