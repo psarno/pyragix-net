@@ -134,7 +134,10 @@ rm -rf lucene_index
 ```
 
 > [!TIP]
-> TODO: Port the `--fresh` CLI flag from the Python version. The engine API already supports `fresh: true` (see library usage below), but the console app doesn't expose it yet. For now, delete artifacts manually.
+> Pass `--fresh` to wipe existing artifacts and rebuild indexes from scratch:
+> ```bash
+> dotnet run -- ingest ./docs --fresh
+> ```
 
 ## Usage
 
@@ -204,8 +207,8 @@ DefaultTopK = 7                  # Top chunks for answer generation
 HybridAlpha = 0.7               # 70% semantic, 30% keyword
 QueryExpansionCount = 3         # Number of query variants
 
-# GPU Acceleration (requires CUDA)
-GpuEnabled = false              # Set true for GPU inference
+# GPU / ONNX Execution Provider (requires CUDA)
+ExecutionProviderPreference = "Cpu"   # Cpu | Auto | Cuda
 GpuDeviceId = 0
 ```
 
@@ -229,10 +232,13 @@ OcrBaseDpi = 200
 ```
 
 > [!NOTE]
-> GPU acceleration requires CUDA. TODO: Port `ExecutionProviderPreference` from the Python version for auto-detection. Currently uses a simple `GpuEnabled` bool.
+> GPU acceleration requires CUDA. `ExecutionProviderPreference` controls how ONNX Runtime picks a device for embedding and reranking inference — FAISS vector search is always CPU-only.
 
 ```toml
-GpuEnabled = true
+# Cpu   — CPU only. Safe on any machine. Default.
+# Auto  — Try CUDA first; silently fall back to CPU if unavailable.
+# Cuda  — Require CUDA. Fails at startup if CUDA is not available.
+ExecutionProviderPreference = "Auto"
 GpuDeviceId = 0
 ```
 

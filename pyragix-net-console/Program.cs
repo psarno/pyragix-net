@@ -16,7 +16,7 @@ internal class Program
         if (args.Length == 0)
         {
             Console.WriteLine("Usage:");
-            Console.WriteLine("  pyragix-net-console ingest <folder_path>");
+            Console.WriteLine("  pyragix-net-console ingest <folder_path> [--fresh]");
             Console.WriteLine("  pyragix-net-console query <question>");
             return;
         }
@@ -33,7 +33,9 @@ internal class Program
                         Console.WriteLine("Error: Please provide a folder path to ingest");
                         return;
                     }
-                    await IngestAsync(engine, args[1]);
+                    var fresh = args.Contains("--fresh");
+                    var ingestPath = args.Skip(1).First(a => !a.StartsWith("-"));
+                    await IngestAsync(engine, ingestPath, fresh);
                     break;
 
                 case "query":
@@ -61,9 +63,14 @@ internal class Program
     /// <summary>
     /// Runs the ingestion pipeline against the specified folder.
     /// </summary>
-    private static async Task IngestAsync(RagEngine engine, string folderPath)
+    /// <param name="fresh">When true, existing indexes and database are wiped before ingestion.</param>
+    private static async Task IngestAsync(RagEngine engine, string folderPath, bool fresh = false)
     {
         Console.WriteLine($"Ingesting documents from: {folderPath}");
+        if (fresh)
+        {
+            Console.WriteLine("Mode: fresh (existing artifacts will be cleared)");
+        }
         Console.WriteLine();
 
         if (!Directory.Exists(folderPath))
@@ -76,7 +83,7 @@ internal class Program
 
         try
         {
-            var finalUpdate = await consoleProgress.RunAsync(engine.IngestDocumentsAsync(folderPath, progress: consoleProgress));
+            var finalUpdate = await consoleProgress.RunAsync(engine.IngestDocumentsAsync(folderPath, fresh: fresh, progress: consoleProgress));
             Console.WriteLine(finalUpdate.Message);
         }
         catch
