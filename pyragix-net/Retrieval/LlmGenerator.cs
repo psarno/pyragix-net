@@ -6,10 +6,11 @@ using System.Text.Json;
 namespace PyRagix.Net.Retrieval;
 
 /// <summary>
-/// Wraps calls to Ollama for grounded answer generation.
-/// This mirrors the Python generator so prompt formatting stays aligned across languages.
+/// Wraps calls to an OpenAI-compatible LLM server for grounded answer generation.
+/// Works with llamacpp, KoboldCpp, LM Studio, vLLM, LocalAI, Ollama (/v1), and any other server
+/// that implements the <c>/v1/chat/completions</c> endpoint.
 /// </summary>
-public class OllamaGenerator
+public class LlmGenerator
 {
     private readonly PyRagixConfig _config;
     private readonly HttpClient _httpClient;
@@ -17,7 +18,7 @@ public class OllamaGenerator
     /// <summary>
     /// Configures a dedicated <see cref="HttpClient"/> with the project-level timeout.
     /// </summary>
-    public OllamaGenerator(PyRagixConfig config)
+    public LlmGenerator(PyRagixConfig config)
     {
         _config = config;
         _httpClient = new HttpClient
@@ -37,7 +38,7 @@ public class OllamaGenerator
 
         try
         {
-            var response = await CallOllamaAsync(prompt);
+            var response = await CallLlmAsync(prompt);
             return response;
         }
         catch (Exception ex)
@@ -86,43 +87,45 @@ Answer:";
     }
 
     /// <summary>
-    /// Calls the Ollama generate endpoint and returns the raw response text.
+    /// Calls the OpenAI-compatible <c>/v1/chat/completions</c> endpoint and returns the response text.
     /// </summary>
-    private async Task<string> CallOllamaAsync(string prompt)
+    private async Task<string> CallLlmAsync(string prompt)
     {
         var requestBody = new
         {
-            model = _config.OllamaModel,
-            prompt = prompt,
-            stream = false,
-            options = new
-            {
-                temperature = _config.Temperature,
-                top_p = _config.TopP,
-                num_predict = _config.MaxTokens
-            }
+            model = _config.LlmModel,
+            messages = new[] { new { role = "user", content = prompt } },
+            temperature = _config.Temperature,
+            top_p = _config.TopP,
+            max_tokens = _config.MaxTokens,
+            stream = false
         };
 
         var json = JsonSerializer.Serialize(requestBody);
         var content = new StringContent(json, Encoding.UTF8, "application/json");
 
-        var response = await _httpClient.PostAsync($"{_config.OllamaEndpoint}/api/generate", content);
+        var response = await _httpClient.PostAsync($"{_config.LlmEndpoint}/v1/chat/completions", content);
         response.EnsureSuccessStatusCode();
 
         var responseJson = await response.Content.ReadAsStringAsync();
         var doc = JsonDocument.Parse(responseJson);
 
-        return doc.RootElement.GetProperty("response").GetString() ?? string.Empty;
+        return doc.RootElement
+            .GetProperty("choices")[0]
+            .GetProperty("message")
+            .GetProperty("content")
+            .GetString() ?? string.Empty;
     }
 
     /// <summary>
-    /// Performs a lightweight health check against the Ollama tags endpoint to confirm availability.
+    /// Performs a lightweight health check against the <c>/v1/models</c> endpoint,
+    /// which is supported by all major OpenAI-compatible inference servers.
     /// </summary>
-    public async Task<bool> IsOllamaAvailableAsync()
+    public async Task<bool> IsAvailableAsync()
     {
         try
         {
-            var response = await _httpClient.GetAsync($"{_config.OllamaEndpoint}/api/tags");
+            var response = await _httpClient.GetAsync($"{_config.LlmEndpoint}/v1/models");
             return response.IsSuccessStatusCode;
         }
         catch

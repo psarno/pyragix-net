@@ -5,7 +5,7 @@ using System.Text;
 namespace PyRagix.Net.Retrieval;
 
 /// <summary>
-/// Calls an Ollama model to generate alternative phrasings of the user's question, boosting recall for lexical/semantic search.
+/// Calls an OpenAI-compatible LLM to generate alternative phrasings of the user's question, boosting recall for lexical/semantic search.
 /// </summary>
 public class QueryExpander
 {
@@ -13,7 +13,7 @@ public class QueryExpander
     private readonly HttpClient _httpClient;
 
     /// <summary>
-    /// Initialises the expander with a dedicated <see cref="HttpClient"/> respecting the configured timeout.
+    /// Initializes the expander with a dedicated <see cref="HttpClient"/> respecting the configured timeout.
     /// </summary>
     public QueryExpander(PyRagixConfig config)
     {
@@ -45,7 +45,7 @@ Alternative questions:";
 
         try
         {
-            var response = await CallOllamaAsync(prompt);
+            var response = await CallLlmAsync(prompt);
 
             // Parse response into separate queries
             var lines = response.Split('\n', StringSplitOptions.RemoveEmptyEntries)
@@ -66,31 +66,32 @@ Alternative questions:";
     }
 
     /// <summary>
-    /// Invokes the Ollama generate endpoint and returns the raw response text.
+    /// Invokes the OpenAI-compatible <c>/v1/chat/completions</c> endpoint and returns the response text.
     /// </summary>
-    private async Task<string> CallOllamaAsync(string prompt)
+    private async Task<string> CallLlmAsync(string prompt)
     {
         var requestBody = new
         {
-            model = _config.OllamaModel,
-            prompt = prompt,
-            stream = false,
-            options = new
-            {
-                temperature = _config.Temperature,
-                top_p = _config.TopP
-            }
+            model = _config.LlmModel,
+            messages = new[] { new { role = "user", content = prompt } },
+            temperature = _config.Temperature,
+            top_p = _config.TopP,
+            stream = false
         };
 
         var json = JsonSerializer.Serialize(requestBody);
         var content = new StringContent(json, Encoding.UTF8, "application/json");
 
-        var response = await _httpClient.PostAsync($"{_config.OllamaEndpoint}/api/generate", content);
+        var response = await _httpClient.PostAsync($"{_config.LlmEndpoint}/v1/chat/completions", content);
         response.EnsureSuccessStatusCode();
 
         var responseJson = await response.Content.ReadAsStringAsync();
         var doc = JsonDocument.Parse(responseJson);
 
-        return doc.RootElement.GetProperty("response").GetString() ?? string.Empty;
+        return doc.RootElement
+            .GetProperty("choices")[0]
+            .GetProperty("message")
+            .GetProperty("content")
+            .GetString() ?? string.Empty;
     }
 }

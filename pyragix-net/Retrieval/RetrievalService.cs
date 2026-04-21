@@ -16,7 +16,7 @@ public class RetrievalService : IDisposable
     private readonly QueryExpander _queryExpander;
     private readonly HybridRetriever _hybridRetriever;
     private readonly Reranker _reranker;
-    private readonly OllamaGenerator _generator;
+    private readonly LlmGenerator _generator;
 
     /// <summary>
     /// Constructs the service and spins up the reusable ingestion/retrieval dependencies.
@@ -29,7 +29,7 @@ public class RetrievalService : IDisposable
         _queryExpander = new QueryExpander(config);
         _hybridRetriever = new HybridRetriever(config, _dbContext);
         _reranker = new Reranker(config);
-        _generator = new OllamaGenerator(config);
+        _generator = new LlmGenerator(config);
     }
 
     /// <summary>
@@ -86,15 +86,15 @@ public class RetrievalService : IDisposable
     }
 
     /// <summary>
-    /// Performs a readiness check before serving queries, ensuring Ollama and the FAISS index are reachable.
+    /// Performs a readiness check before serving queries, ensuring the LLM server and the FAISS index are reachable.
     /// </summary>
     public async Task<bool> IsReadyAsync()
     {
-        var ollamaAvailable = await _generator.IsOllamaAvailableAsync();
+        var llmAvailable = await _generator.IsAvailableAsync();
 
-        if (!ollamaAvailable)
+        if (!llmAvailable)
         {
-            Console.WriteLine("ERROR: Ollama is not running. Start with: ollama serve");
+            Console.WriteLine($"ERROR: LLM server is not reachable at {_config.LlmEndpoint}");
             return false;
         }
 

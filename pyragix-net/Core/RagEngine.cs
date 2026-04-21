@@ -59,7 +59,7 @@ public class RagEngine : IDisposable
         // Ensure critical dependencies (indexes + Ollama) are reachable before attempting retrieval.
         if (!await _retrievalService.IsReadyAsync())
         {
-            throw new InvalidOperationException("RAG system not ready. Check Ollama and index files.");
+            throw new InvalidOperationException("RAG system not ready. Check LLM server and index files.");
         }
 
         return await _retrievalService.QueryAsync(question, topK);

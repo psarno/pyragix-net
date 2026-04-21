@@ -12,11 +12,11 @@ FaissIndexPath     = "faiss_index.bin"
 LuceneIndexPath    = "lucene_index"
 
 # ============================================================================
-# OLLAMA / LLM
+# LLM (any OpenAI-compatible server: llamacpp, KoboldCpp, Ollama, LM Studio, vLLM, LocalAI, etc.)
 # ============================================================================
-OllamaEndpoint  = "http://localhost:11434"
-OllamaModel     = "qwen2.5:7b"
-OllamaTimeout   = 180
+LlmEndpoint  = "http://localhost:8080"   # llamacpp default; KoboldCpp=5001, Ollama=11434
+LlmModel     = "qwen2.5:7b"
+LlmTimeout   = 180
 Temperature     = 0.1
 TopP            = 0.9
 MaxTokens       = 500

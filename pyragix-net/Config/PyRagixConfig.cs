@@ -31,9 +31,9 @@ public class PyRagixConfig
     public string BM25IndexPath { get; set; } = "bm25_index.pkl";
     public string LuceneIndexPath { get; set; } = "lucene_index";
 
-    // Ollama LLM
-    public string OllamaEndpoint { get; set; } = "http://localhost:11434";
-    public string OllamaModel { get; set; } = "qwen2.5:7b";
+    // LLM (any OpenAI-compatible server: llamacpp, KoboldCpp, Ollama, LM Studio, vLLM, LocalAI, etc.)
+    public string LlmEndpoint { get; set; } = "http://localhost:8080";
+    public string LlmModel { get; set; } = "qwen2.5:7b";
     public double Temperature { get; set; } = 0.1;
     public double TopP { get; set; } = 0.9;
     public int MaxTokens { get; set; } = 500;
