@@ -47,9 +47,17 @@ Alternative questions:";
         {
             var response = await CallLlmAsync(prompt);
 
+            // Strip <think>...</think> blocks emitted by reasoning models (DeepSeek-R1, Qwen3, etc.)
+            var thinkStart = response.IndexOf("<think>", StringComparison.OrdinalIgnoreCase);
+            var thinkEnd   = response.IndexOf("</think>", StringComparison.OrdinalIgnoreCase);
+            if (thinkStart >= 0 && thinkEnd > thinkStart)
+                response = response[(thinkEnd + "</think>".Length)..].Trim();
+
             // Parse response into separate queries
             var lines = response.Split('\n', StringSplitOptions.RemoveEmptyEntries)
                 .Select(l => l.Trim())
+                // Strip leading bullet/numbered list markers that thinking models frequently emit.
+                .Select(StripListMarker)
                 .Where(l => !string.IsNullOrWhiteSpace(l) && l.Contains('?'))
                 .Take(_config.QueryExpansionCount)
                 .ToList();
@@ -63,6 +71,24 @@ Alternative questions:";
 
         // Deduplicate to guard against the model echoing the original question or repeating a variant verbatim.
         return variants.Distinct().ToList();
+    }
+
+    /// <summary>
+    /// Removes leading bullet or numbered-list markers emitted by LLMs (e.g. <c>* </c>, <c>- </c>, <c>1. </c>).
+    /// </summary>
+    private static string StripListMarker(string line)
+    {
+        // Bullet markers: *, -, +
+        if (line.Length > 1 && (line[0] == '*' || line[0] == '-' || line[0] == '+') && char.IsWhiteSpace(line[1]))
+            return line[1..].TrimStart();
+
+        // Numbered markers: "1. " or "1) "
+        int i = 0;
+        while (i < line.Length && char.IsDigit(line[i])) i++;
+        if (i > 0 && i < line.Length - 1 && (line[i] == '.' || line[i] == ')') && char.IsWhiteSpace(line[i + 1]))
+            return line[(i + 1)..].TrimStart();
+
+        return line;
     }
 
     /// <summary>

@@ -134,7 +134,18 @@ public class HybridRetriever : IDisposable
         {
             var analyzer = new StandardAnalyzer(LuceneVersion.LUCENE_48);
             var parser = new QueryParser(LuceneVersion.LUCENE_48, "content", analyzer);
-            var query = parser.Parse(queryText);
+
+            // Fall back to escaped query when raw text contains characters Lucene treats as operators
+            // (e.g. a leading '*' or '?' produced by list-marker stripping failures or prompt echo).
+            Lucene.Net.Search.Query query;
+            try
+            {
+                query = parser.Parse(queryText);
+            }
+            catch (ParseException)
+            {
+                query = parser.Parse(QueryParserBase.Escape(queryText));
+            }
 
             var hits = _luceneSearcher.Search(query, k);
 
