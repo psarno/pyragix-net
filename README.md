@@ -63,6 +63,20 @@ Query expansion helps with recall on vague or paraphrased questions. Reranking f
 
 ### Installation
 
+#### As a NuGet Package
+
+For library usage, install via NuGet:
+
+```bash
+dotnet add package PyRagix.Net
+```
+
+Then configure in your project (see [Configuration](#configuration) below).
+
+#### For Development
+
+To build from source:
+
 ```bash
 git clone https://github.com/psarno/pyragix-net.git
 cd pyragix-net
