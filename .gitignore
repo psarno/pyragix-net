@@ -52,3 +52,5 @@ settings.toml
 # Logs
 *.log
 crash_log.txt
+
+test-docs/
