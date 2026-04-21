@@ -11,7 +11,7 @@ internal class Program
         Console.WriteLine("PyRagix.Net - Local RAG Engine\n");
 
         // Load configuration and create engine so both commands share the same instance.
-        var engine = RagEngine.FromSettings("../pyragix-net/settings.toml");
+        var engine = RagEngine.FromSettings("settings.toml");
 
         if (args.Length == 0)
         {
@@ -56,7 +56,6 @@ internal class Program
         catch (Exception ex)
         {
             Console.WriteLine($"Error: {ex.Message}");
-            Console.WriteLine(ex.StackTrace);
         }
     }
 
