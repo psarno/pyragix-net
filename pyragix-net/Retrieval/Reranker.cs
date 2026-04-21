@@ -103,7 +103,7 @@ public class Reranker : IDisposable
     }
 
     /// <summary>
-    /// Placeholder tokenizer that mirrors <see cref="EmbeddingService"/>; replace with a shared tokenizer when available.
+    /// Placeholder tokenizer that mirrors <see cref="PyRagix.Net.Ingestion.EmbeddingService"/>; replace with a shared tokenizer when available.
     /// </summary>
     private long[] Tokenize(string text)
     {
@@ -129,7 +129,7 @@ public class Reranker : IDisposable
 
     /// <summary>
     /// Builds <see cref="SessionOptions"/> according to the configured execution provider preference.
-    /// Mirrors the same logic in <see cref="EmbeddingService"/>.
+    /// Mirrors the same logic in <see cref="PyRagix.Net.Ingestion.EmbeddingService"/>.
     /// </summary>
     private static SessionOptions BuildSessionOptions(PyRagixConfig config)
     {

@@ -9,6 +9,9 @@ namespace PyRagix.Net.Core.Models;
 /// </summary>
 public class ChunkMetadata
 {
+    /// <summary>
+    /// Auto-incremented primary key; also used as the vector identifier inside FAISS.
+    /// </summary>
     [Key]
     [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
     public int Id { get; set; }

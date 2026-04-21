@@ -11,6 +11,9 @@ public class SemanticChunker
 {
     private readonly PyRagixConfig _config;
 
+    /// <summary>
+    /// Initialises the chunker with the pipeline configuration.
+    /// </summary>
     public SemanticChunker(PyRagixConfig config)
     {
         _config = config;

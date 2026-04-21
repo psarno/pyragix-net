@@ -23,12 +23,14 @@ public class PyRagixDbContext : DbContext
         _databasePath = databasePath;
     }
 
+    /// <inheritdoc/>
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {
         // Point EF Core at the caller-specified database file so local runs can isolate datasets.
         optionsBuilder.UseSqlite($"Data Source={_databasePath}");
     }
 
+    /// <inheritdoc/>
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);

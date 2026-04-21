@@ -107,6 +107,9 @@ public class RetrievalService : IDisposable
         return true;
     }
 
+    /// <summary>
+    /// Releases all services and native resources held by the retrieval pipeline.
+    /// </summary>
     public void Dispose()
     {
         _embeddingService?.Dispose();
