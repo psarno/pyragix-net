@@ -5,8 +5,22 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <OutputType>Library</OutputType>
-    <Version>0.3.0</Version>
+    <!-- Package metadata -->
+    <PackageId>PyRagix.Net</PackageId>
+    <Version>0.3.1</Version>
+    <Authors>psarno</Authors>
+    <Description>Local-first RAG pipeline for .NET — hybrid search (FAISS + BM25), ONNX embeddings, cross-encoder reranking, Ollama LLM. 100% on-premise.</Description>
+    <PackageTags>rag;llm;ollama;embeddings;faiss;semantic-search;ai;local-first</PackageTags>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <RepositoryUrl>https://github.com/psarno/pyragix-net</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
   </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="../README.md" Pack="true" PackagePath="\"/>
+  </ItemGroup>
 
   <ItemGroup>
     <!-- AI/ML -->
