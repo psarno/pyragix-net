@@ -2,10 +2,10 @@
 
 # PyRagix.Net
 
-.NET 9.0 port of [PyRagix](https://github.com/psarno/pyragix) - local-first RAG system with query expansion, cross-encoder reranking, hybrid search (FAISS + Lucene BM25), and semantic chunking. Runs entirely on your machine via Ollama and ONNX Runtime. No cloud APIs, no data leaving your network.
+.NET 10.0 port of [PyRagix](https://github.com/psarno/pyragix) - local-first RAG system with query expansion, cross-encoder reranking, hybrid search (FAISS + Lucene BM25), and semantic chunking. Runs entirely on your machine via any OpenAI-compatible LLM server and ONNX Runtime. No cloud APIs, no data leaving your network.
 
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
-![.NET](https://img.shields.io/badge/.NET-9.0-blue.svg)
+![.NET](https://img.shields.io/badge/.NET-10.0-blue.svg)
 ![C#](https://img.shields.io/badge/C%23-12.0-purple.svg)
 
 ## Architecture
@@ -56,8 +56,13 @@ Query expansion helps with recall on vague or paraphrased questions. Reranking f
 
 ### Prerequisites
 
-1. **.NET 9.0 SDK** - [Download here](https://dotnet.microsoft.com/download/dotnet/9.0)
-2. **Ollama** - [Download here](https://ollama.com) for local LLM inference
+1. **.NET 10.0 SDK** - [Download here](https://dotnet.microsoft.com/download/dotnet/10.0)
+2. **Local LLM Server** (any OpenAI-compatible provider):
+   - **Ollama** - [Download here](https://ollama.com)
+   - **LM Studio** - [Download here](https://lmstudio.ai)
+   - **llamacpp** - [GitHub](https://github.com/ggerganov/llama.cpp)
+   - **KoboldCpp** - [GitHub](https://github.com/LostRuins/koboldcpp)
+   - **vLLM**, **LocalAI**, or any other `/v1/chat/completions`-compatible server
 3. **Python 3.8+** - For one-time ONNX model export
 4. **8GB+ RAM** (16GB+ recommended)
 
@@ -118,11 +123,15 @@ See [`docs/ONNX_SETUP.md`](docs/ONNX_SETUP.md) for detailed instructions.
 ### Configure and Run
 
 ```bash
-cp pyragix-net-console/settings.example.toml pyragix-net-console/settings.toml
+cp pyragix-net/settings.example.toml pyragix-net-console/settings.toml
 
-# Start Ollama (separate terminal)
+# Start your LLM server (separate terminal). Examples:
+# Ollama:
 ollama pull qwen2.5:7b
 ollama serve
+
+# Or LM Studio: launch the app and load a model
+# Or llamacpp: server -m model.gguf -p 8080
 
 # Run console app
 cd pyragix-net-console
@@ -167,8 +176,8 @@ var engine = RagEngine.FromSettings("settings.toml");
 // Or configure programmatically
 var config = new PyRagixConfig
 {
-    OllamaEndpoint = "http://localhost:11434",
-    OllamaModel = "qwen2.5:7b",
+    LlmEndpoint = "http://localhost:8080",  // llamacpp, KoboldCpp, Ollama, LM Studio, vLLM, etc.
+    LlmModel = "qwen2.5:7b",
     EmbeddingModelPath = "./Models/embeddings/model.onnx",
     RerankerModelPath = "./Models/reranker/model.onnx",
     EnableQueryExpansion = true,
@@ -204,10 +213,10 @@ DatabasePath = "pyragix.db"
 FaissIndexPath = "faiss_index.bin"
 LuceneIndexPath = "lucene_index"
 
-# Ollama LLM
-OllamaEndpoint = "http://localhost:11434"
-OllamaModel = "qwen2.5:7b"
-OllamaTimeout = 180
+# LLM (any OpenAI-compatible server: llamacpp, KoboldCpp, Ollama, LM Studio, vLLM, LocalAI, etc.)
+LlmEndpoint = "http://localhost:8080"  # llamacpp default; KoboldCpp=5001, Ollama=11434, LM Studio=8000
+LlmModel = "qwen2.5:7b"
+LlmTimeout = 180
 
 # RAG Features
 EnableQueryExpansion = true      # Multi-query generation
@@ -285,16 +294,16 @@ pyragix-net/
 │   │   ├── QueryExpander.cs           # Multi-query generation
 │   │   ├── HybridRetriever.cs         # FAISS + BM25 fusion (RRF)
 │   │   ├── Reranker.cs                # Cross-encoder ONNX scoring
-│   │   ├── OllamaGenerator.cs         # LLM answer generation
+│   │   ├── LlmGenerator.cs            # LLM answer generation
 │   │   └── RetrievalService.cs        # Pipeline orchestration
 │   ├── Models/                        # .onnx files (gitignored)
-│   └── pyragix-net.csproj             # .NET 9.0 class library
+│   └── pyragix-net.csproj             # .NET 10.0 class library
 │
 ├── pyragix-net-console/               # Console Demo App
 │   ├── Program.cs                     # CLI implementation
 │   ├── Models/                        # .onnx models location
 │   ├── settings.toml                  # App-specific config (gitignored)
-│   └── pyragix-net-console.csproj     # .NET 9.0 executable
+│   └── pyragix-net-console.csproj     # .NET 10.0 executable
 │
 └── PyRagix.Net.Tests/                 # xUnit Test Project
     └── TestInfrastructure/            # InMemoryVectorIndex, TempDirectory
@@ -333,7 +342,7 @@ dotnet build
 ```
 
 **Rules:**
-- .NET 9.0 with nullable reference types enabled
+- .NET 10.0 with nullable reference types enabled
 - Follow existing architectural patterns (service-based pipeline design)
 - Add XML documentation comments for public APIs
 - xUnit tests for new features (see `PyRagix.Net.Tests/` for patterns)
