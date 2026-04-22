@@ -6,7 +6,7 @@
 
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
 ![.NET](https://img.shields.io/badge/.NET-10.0-blue.svg)
-![C#](https://img.shields.io/badge/C%23-12.0-purple.svg)
+![C#](https://img.shields.io/badge/C%23-14.0-purple.svg)
 
 ## Architecture
 
