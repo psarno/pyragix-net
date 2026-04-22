@@ -30,16 +30,21 @@ public class LlmGenerator
     /// <summary>
     /// Generates an answer conditioned on the supplied context chunks.
     /// Falls back to a descriptive error message when the call fails.
+    /// Throws <see cref="OperationCanceledException"/> if <paramref name="cancellationToken"/> is cancelled.
     /// </summary>
-    public async Task<string> GenerateAnswerAsync(string question, List<ChunkMetadata> context)
+    public async Task<string> GenerateAnswerAsync(string question, List<ChunkMetadata> context, CancellationToken cancellationToken = default)
     {
         var contextText = FormatContext(context);
         var prompt = BuildPrompt(question, contextText);
 
         try
         {
-            var response = await CallLlmAsync(prompt);
+            var response = await CallLlmAsync(prompt, cancellationToken);
             return response;
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
         }
         catch (Exception ex)
         {
@@ -89,7 +94,7 @@ Answer:";
     /// <summary>
     /// Calls the OpenAI-compatible <c>/v1/chat/completions</c> endpoint and returns the response text.
     /// </summary>
-    private async Task<string> CallLlmAsync(string prompt)
+    private async Task<string> CallLlmAsync(string prompt, CancellationToken cancellationToken = default)
     {
         var requestBody = new
         {
@@ -104,10 +109,10 @@ Answer:";
         var json = JsonSerializer.Serialize(requestBody);
         var content = new StringContent(json, Encoding.UTF8, "application/json");
 
-        var response = await _httpClient.PostAsync($"{_config.LlmEndpoint}/v1/chat/completions", content);
+        var response = await _httpClient.PostAsync($"{_config.LlmEndpoint}/v1/chat/completions", content, cancellationToken);
         response.EnsureSuccessStatusCode();
 
-        var responseJson = await response.Content.ReadAsStringAsync();
+        var responseJson = await response.Content.ReadAsStringAsync(cancellationToken);
         var doc = JsonDocument.Parse(responseJson);
 
         return doc.RootElement

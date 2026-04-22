@@ -35,7 +35,7 @@ public class RetrievalService : IDisposable
     /// <summary>
     /// Executes the full pipeline and returns the generated answer string.
     /// </summary>
-    public async Task<string> QueryAsync(string question, int? topK = null)
+    public async Task<string> QueryAsync(string question, int? topK = null, CancellationToken cancellationToken = default)
     {
         var k = topK ?? _config.DefaultTopK;
 
@@ -80,7 +80,7 @@ public class RetrievalService : IDisposable
 
         // Step 4: Generate answer
         Console.WriteLine("\n[4/4] Generating answer...");
-        var answer = await _generator.GenerateAnswerAsync(question, topChunks);
+        var answer = await _generator.GenerateAnswerAsync(question, topChunks, cancellationToken);
 
         return answer;
     }

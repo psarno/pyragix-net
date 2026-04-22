@@ -51,8 +51,9 @@ public class RagEngine : IDisposable
     /// </summary>
     /// <param name="question">Natural language question</param>
     /// <param name="topK">Number of top chunks to use for answer generation (default: 7)</param>
+    /// <param name="cancellationToken">Token that aborts the in-flight LLM request if cancelled.</param>
     /// <returns>Generated answer based on retrieved context</returns>
-    public async Task<string> QueryAsync(string question, int? topK = null)
+    public async Task<string> QueryAsync(string question, int? topK = null, CancellationToken cancellationToken = default)
     {
         _retrievalService ??= new RetrievalService(_config);
 
@@ -62,7 +63,7 @@ public class RagEngine : IDisposable
             throw new InvalidOperationException("RAG system not ready. Check LLM server and index files.");
         }
 
-        return await _retrievalService.QueryAsync(question, topK);
+        return await _retrievalService.QueryAsync(question, topK, cancellationToken);
     }
 
     /// <summary>
